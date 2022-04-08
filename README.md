@@ -1,10 +1,12 @@
-# NOAA Wave Ensemble Reforecast, AWS data storage noaa-nws-gefswaves-reforecast-pds
+# NOAA Wave Ensemble Reforecast
+
+AWS data storage noaa-nws-gefswaves-reforecast-pds
 
 This is a project in cooperation with the National Weather Service’s Ocean Prediction Center and Environmental Modeling Center, along with NOAA’s Atlantic Oceanographic and Meteorological Laboratory (AOML) and the University of Miami’s University of Miami Cooperative Institute for Marine and Atmospheric Studies (CIMAS).
 
 # Description:
 
-This is repository to help users to download and process the 20-year global wave reforecast generated 
+This repository is designed to help users to download and process the 20-year global wave reforecast generated 
  by WAVEWATCH III model (https://github.com/NOAA-EMC/WW3) forced by GEFSv12 winds (https://noaa-gefs-retrospective.s3.amazonaws.com/index.html).
 The wave ensemble has been run with one cycle per day (at 03Z), spatial resolution of 0.25°X0.25° and temporal resolution of 3 hours. 
 There are five ensemble members (control plus four perturbed members) and, once a week (Wednesdays),
