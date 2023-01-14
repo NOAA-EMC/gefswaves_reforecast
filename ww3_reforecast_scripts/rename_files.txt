@@ -1,0 +1,2 @@
+rename 'ww3gefs' 'gefs.wave' *
+rename '.field' '.global.0p25' *
