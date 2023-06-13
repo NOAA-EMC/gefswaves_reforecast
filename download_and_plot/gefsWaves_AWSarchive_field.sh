@@ -8,8 +8,10 @@
 #
 # PURPOSE:
 #  Script to download NOAA Global Ensemble Forecast System (GEFS), Wave 
-#   Forecast from WAVEWATCH III operational. Download from AWS archive.
-#   Global wave fields.
+#   Forecast from WAVEWATCH III operational. Download grib2 files from
+#   AWS archive, convert and compress to netcdf format. Only the control
+#   member and the ensemble mean are obtained.
+#   Global wind and wave fields.
 #
 # USAGE:
 #  Two input arguments, date and path, must be entered.
@@ -22,18 +24,20 @@
 #    and significant wave height.
 #
 # DEPENDENCIES:
-#  wget, perl, NCO, wgrib2
-#  For most linux systems, wget and perl are already included. The 
+#  wget, pearl, NCO, wgrib2
+#  For most linux systems, wget and pearl are already included. The 
 #    program NCO can be downloaded via apt-get (debian/ubuntu):
 #    sudo apt-get install nco
 #    the program wgrib2 can be downloaded at
 #    https://www.ftp.cpc.ncep.noaa.gov/wd51we/wgrib2/
 #
-#  Finally, the two codes get_grib.pl and get_inv.pl must be included in 
-#    the same directory where you save this code.
+#  Before starting the download, two auxiliar pearl scripts are downloaded,
+#    get_grib.pl and get_inv.pl, which allows to fetch only specific
+#    variables. If you already have those files, feel free to comment these
+#    lines. They must be in the same directory you are running this script.
 #
 # AUTHOR and DATE:
-#  02/15/2023: Ricardo M. Campos, first simplified version 
+#  02/15/2023: Ricardo M. Campos, first version 
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
@@ -46,6 +50,13 @@ CTIME="$1"
 DIRW="$2"
 # server address
 SERVER=https://noaa-gefs-pds.s3.amazonaws.com/
+
+# Auxiliar pearl scripts
+# https://www.cpc.ncep.noaa.gov/products/wesley/fast_downloading_grib.html
+wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_inv.pl
+chmod 775 get_inv.pl
+wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_grib.pl
+chmod 775 get_grib.pl
 
 # convertion and compression
 WGRIB2=$(which wgrib2)

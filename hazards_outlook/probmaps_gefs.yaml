@@ -24,7 +24,7 @@ nmax: 2
 # spatial window size (diameter), square (degrees)
 spws: 2
 # Spatial percentile (select only the most severe neighbouring points within spws)
-spctl: 80
+spctl: 87
 # gaussian filter spatial plot smoothing. It does not concern the prob computation, only the plots
 gft: 2
 # maximum value allowed (quick quality control)
@@ -35,7 +35,7 @@ qqvmax_tp: 40.
 pctls:
 - 95
 - 99
-# tick/interval in the colorbar of the initial plots
+# tick/intervall in the colorbar of the initial plots
 vtickd_wnd: 2
 vtickd_hs: 1
 vtickd_tp: 2
@@ -44,15 +44,16 @@ vtickd_tp: 2
 # gale force m/s https://en.wikipedia.org/wiki/Gale 
 # https://en.wikipedia.org/wiki/Beaufort_scale
 # Saffir-Simpson Hurricane Wind (32.7)
-# 18 (gale force), 22 (strong gale), 25 (whole gale), 28.5 beaufort 11 (violent storm), 32.7 hurricane force
+# 14 m/s (high wind, near gale), 17 (gale force), 22 (strong gale), 25 (whole gale), 28.5 beaufort 11 (violent storm), 32.7 hurricane force
 qlev_wnd:
-- 18.0
+- 14.0
+- 17.0
 - 22.0
 - 25.0
 - 28.5
 - 32.7
 
-# 4m, 5.5 (gale), 8.8 (Storm,whole gale, beaufort 10), beaufort 11 (violent storm), 14 (hurricane force)
+# 4 m (high wind, near gale), 5.5 (gale), 8.8 (Storm,whole gale, beaufort 10), beaufort 11 (violent storm), 14 (hurricane force)
 qlev_hs:
 - 4.0
 - 5.5

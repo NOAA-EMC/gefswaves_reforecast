@@ -151,19 +151,27 @@ else:
 del wconfig
 print(" Reading yaml configuration file, OK."); print(" ")
 
-# Week string, for the plots
+# Time range forecast intervall string, for the plots
+if (ltime2-ltime1)<0:
+	aux=np.copy(ltime1); ltime1=np.copy(ltime2)
+	ltime2=np.copy(aux); del aux
+
 if ltime1==1 and (ltime2-ltime1)==7:
-	wk='Week 1 - '
+	trfi=str("Week 1 - ")
 elif ltime1==7 and (ltime2-ltime1)==7:
-	wk='Week 2 - '
+	trfi=str("Week 2 - ")
 elif ltime1==14 and (ltime2-ltime1)==7:
-	wk='Week 3 - '
+	trfi=str("Week 3 - ")
 elif ltime1==21 and (ltime2-ltime1)==7:
-	wk='Week 4 - '
+	trfi=str("Week 4 - ")
 elif ltime1==28 and (ltime2-ltime1)==7:
-	wk='Week 5 - '
+	trfi=str("Week 5 - ")
+elif (ltime2-ltime1)>0:
+	trfi=str("Days "+str(ltime1)+"-"+str(ltime2)+" , ")
+elif ltime2==ltime1:
+	trfi=str("Day "+str(ltime1)+" , ")
 else:
-	wk=''
+	trfi=''
 
 print(" "); print(" 1. Reading Forecast Data ...")
 
@@ -217,32 +225,32 @@ fmodo=np.array(fmod.reshape(auxltime.shape[0]*nenm,lat.shape[0],lon.shape[0]))
 
 print(" 2. Initial Plots ...")
 wlevels=np.linspace(0,np.nanpercentile(fmod,99.99),101)
-# Max
-plt.figure(figsize=(9,5.5))
-ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
-ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
-gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
-gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
-cs=ax.contourf(lon,lat,np.nanmax(fmodo,axis=0),levels=wlevels,alpha=0.7,cmap='jet',zorder=1,extend="max",transform = ccrs.PlateCarree())
-ax.add_feature(cartopy.feature.OCEAN,facecolor=("white"))
-ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
-ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
-ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
-title = "Max "+fvarname+" ("+funits+"), Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
-title += r"$\bf{"+wk+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
-title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
-ax.set_title(title); del title
-plt.tight_layout()
-ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.07, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
-cbar = plt.colorbar(cs,cax=cax, orientation='horizontal', format='%g')
-labels = np.arange(0, wlevels.max(),vtickd).astype('int'); ticks = np.arange(0, wlevels.max(),vtickd).astype('int')
-cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
-plt.axes(ax); plt.tight_layout()
-plt.savefig(outpath+"Max_"+fvarname+"_"+fcycle+"_fcst"+np.str(ltime1).zfill(2)+"to"+np.str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
-	orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+## Max
+# plt.figure(figsize=(9,5.5))
+# ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
+# ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
+# gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
+# gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
+# cs=ax.contourf(lon,lat,np.nanmax(fmodo,axis=0),levels=wlevels,alpha=0.7,cmap='jet',zorder=1,extend="max",transform = ccrs.PlateCarree())
+# ax.add_feature(cartopy.feature.OCEAN,facecolor=("white"))
+# ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
+# ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
+# ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
+# title = "Max "+fvarname+" ("+funits+"), Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
+# title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
+# title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
+# ax.set_title(title); del title
+# plt.tight_layout()
+# ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.07, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
+# cbar = plt.colorbar(cs,cax=cax, orientation='horizontal', format='%g')
+# labels = np.arange(0, wlevels.max(),vtickd).astype('int'); ticks = np.arange(0, wlevels.max(),vtickd).astype('int')
+# cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
+# plt.axes(ax); plt.tight_layout()
+# plt.savefig(outpath+"Max_"+fvarname+"_"+fcycle+"_fcst"+np.str(ltime1).zfill(2)+"to"+np.str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
+# 	orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+# plt.close('all'); del ax
+# print(" 2. Initial Plots. Max ok.")
 
-plt.close('all'); del ax
-print(" 2. Initial Plots. Max ok.")
 # Percentiles
 for i in range(0,pctls.shape[0]):
 	plt.figure(figsize=(9,5.5))
@@ -256,7 +264,7 @@ for i in range(0,pctls.shape[0]):
 	ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
 	ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
 	title = "Percentile"+str(pctls[i]).zfill(2)+" "+fvarname+" ("+funits+"), Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
-	title += r"$\bf{"+wk+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
+	title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
 	title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
 	ax.set_title(title); del title
 	plt.tight_layout()
@@ -293,8 +301,9 @@ for i in range(0,qlev.shape[0]):
 						aux=np.array(aux[:,ind[0]])			
 						aux=np.array(aux[:,np.int(np.floor(aux.shape[1]*(spctl/100)))::])
 						aux=aux.reshape(aux.shape[0]*aux.shape[1])
-						# 930 for spws=2.0 and nmax=2 and spctl=70 (one week)
 						# 1054 for spws=2.0 and nmax=2 and spctl=80 (one week)
+						# 682 for spws=2.0 and nmax=2 and spctl=87 (one week)
+						# 558 for spws=2.0 and nmax=2 and spctl=90 (one week)
 						probecdf[i,j,k] = np.size(aux[aux>qlev[i]]) / np.size(aux[aux>0.])
 
 					del aux
@@ -323,7 +332,7 @@ for i in range(0,qlev.shape[0]):
 	ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
 	ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
 	title = "Prob "+fvarname+">"+np.str(qlev[i]).zfill(1)+funits+", Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
-	title += r"$\bf{"+wk+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
+	title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
 	title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
 	ax.set_title(title); del title
 	plt.tight_layout()

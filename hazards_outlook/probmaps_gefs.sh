@@ -14,10 +14,14 @@
 #  This shell script is divided in two parts: the first one to download
 #    operational forecast files, and the second one to produce the 
 #    probability maps using a python script, probmaps_gefs.py.
-#  The shell scripts requires one argument for the path where the 
+#  The shell script requires one argument for the path where the 
 #    codes and files are saved (or symbolic link): probmaps_gefs.sh, 
-#    get_grib.pl, get_inv.pl, probmaps_gefs.py, probmaps_gefs.yaml; and 
-#    where a directory will be created to download the operational files.
+#    probmaps_gefs.py, probmaps_gefs.yaml; and where a directory will be
+#    created to download the operational files.
+#  Before starting the download, two auxiliar pearl scripts are downloaded,
+#    get_grib.pl and get_inv.pl, which allows to fetch only specific
+#    variables. If you already have those files, feel free to comment these
+#    lines. They must be in the same directory you are running this script.
 #  By default it downloads the forecast from the current day cycle (00Z),
 #    with 6-h of time step up to 384 hours (16 days)
 #  The python script probmaps_gefs.py is called at the end of this script, 
@@ -42,9 +46,9 @@
 #    outpath informed in the probmaps_gefs.yaml file
 #
 # DEPENDENCIES:
-#  perl and python (see dependencies in probmaps_gefs.py). 
-#    For most linux systems, perl is already included.
-#  Regarding the python installation, it is recommended:
+#  pearl and python (see dependencies in probmaps_gefs.py). 
+#    In most linux systems, pearl is already included.
+#  For the python installation, it is recommended:
 #    https://www.anaconda.com/download
 #
 # AUTHOR and DATE:
@@ -56,7 +60,7 @@
 ########################################################################
 
 # Path where the following codes and files are saved (or symbolic link):
-# probmaps_gefs.sh, get_grib.pl, get_inv.pl, probmaps_gefs.py, probmaps_gefs.yaml
+# probmaps_gefs.sh, probmaps_gefs.py, probmaps_gefs.yaml
 # and where a directory will be created to download operational files
 DIR="$1"
 # The output path where figures/plots will be saved is written in the
@@ -67,7 +71,7 @@ SERVER=https://ftpprd.ncep.noaa.gov/
 s1="global.0p25" # main grid
 
 # variable names to be downloaded. Wind speed, significant wave height, and peak period.
-VARSGET=":WIND:|:HTSGW:surface:|:PERPW:surface:"
+VARSGET=":WIND:surface:|:HTSGW:surface:|:PERPW:surface:"
 # Corresponding variables for the python processing
 MVARS="U10 Hs Tp"
 
@@ -75,13 +79,21 @@ MVARS="U10 Hs Tp"
 YEAR=`date +%Y`
 MONTH=`date +%m`
 DAY=`date +%d`
-# pa=1 #  days into the past. pa=1 dowloades data from yesterday's cycle
+# pa=2 #  days into the past. pa=1 dowloades data from yesterday's cycle
 # YEAR=`date --date=-$pa' day' '+%Y'`
 # MONTH=`date --date=-$pa' day' '+%m'`
 # DAY=`date --date=-$pa' day' '+%d'`
 HOUR="00" # first cycle 00Z
 
 cd $DIR
+
+# Auxiliar pearl scripts
+# https://www.cpc.ncep.noaa.gov/products/wesley/fast_downloading_grib.html
+wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_inv.pl
+chmod 775 get_inv.pl
+wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_grib.pl
+chmod 775 get_grib.pl
+
 # create directory
 mkdir -p $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR
 # all information about fetching and processing the grib2 files will be saved in the log file 
@@ -137,6 +149,9 @@ sleep 2
 # permissions
 chmod -R 775 $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR
 # Download complete. Starting python processing
+
+# activate python 
+source /home/ricardo/python/anaconda3/setanaconda3.sh
 
 echo "  " > $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR
 echo " PYTHON ENSEMBLE PROCESSING: GLOBAL HAZARDS OUTLOOK - PROBABILITY MAPS, $YEAR$MONTH$DAY$HOUR " >> $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR
