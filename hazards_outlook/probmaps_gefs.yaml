@@ -1,0 +1,84 @@
+# Configuration file for probmaps_gefs.py
+
+# text string for identification
+ftag: GEFSv12
+# output path
+outpath: /media/ricardo/ssdwork/analysis/products/probmaps/optest
+
+# Variable names in the grib2 file
+mvar_wnd: "Wind speed"
+mvar_hs: "Significant height of combined wind waves and swell"
+mvar_tp: "Primary wave mean period"
+
+# Domain for the final plot
+lonmin: 140
+lonmax: 360
+latmin: -22
+latmax: 82
+# number of members
+nenm: 31
+# time resolution
+tres: 6
+# n-max expansion (select not only the single max value but the n-max ones)
+nmax: 2
+# spatial window size (diameter), square (degrees)
+spws: 2
+# Spatial percentile (select only the most severe neighbouring points within spws)
+spctl: 87
+# gaussian filter spatial plot smoothing. It does not concern the prob computation, only the plots
+gft: 2
+# maximum value allowed (quick quality control)
+qqvmax_wnd: 99.
+qqvmax_hs: 30.
+qqvmax_tp: 40.
+# percentiles for the initial plots
+pctls:
+- 95
+- 99
+# tick/intervall in the colorbar of the initial plots
+vtickd_wnd: 2
+vtickd_hs: 1
+vtickd_tp: 2
+
+# Levels for the probability plots
+# gale force m/s https://en.wikipedia.org/wiki/Gale 
+# https://en.wikipedia.org/wiki/Beaufort_scale
+# Saffir-Simpson Hurricane Wind (32.7)
+# 14 m/s (high wind, near gale), 17 (gale force), 22 (strong gale), 25 (whole gale), 28.5 beaufort 11 (violent storm), 32.7 hurricane force
+qlev_wnd:
+- 14.0
+- 17.0
+- 22.0
+- 25.0
+- 28.5
+- 32.7
+
+# 4 m (high wind, near gale), 5.5 (gale), 8.8 (Storm,whole gale, beaufort 10), beaufort 11 (violent storm), 14 (hurricane force)
+qlev_hs:
+- 4.0
+- 5.5
+- 8.8
+- 11.0
+- 14.0
+
+qlev_tp:
+- 17.0
+- 20.0
+- 22.0
+
+# Probability thresholds for the resuling maps
+plevels:
+- 0.15
+- 0.5
+- 0.65
+- 0.8
+- 1.0
+
+# colors for the probability maps
+pcolors:
+- lightblue
+- navy
+- darkorange
+- firebrick
+
+
