@@ -90,9 +90,6 @@ with open('probmaps_gefs.yaml', 'r') as file:
 	wconfig = yaml.safe_load(file)
 
 ftag=np.str(wconfig['ftag'])
-# Plotting Area
-slonmin=wconfig['lonmin']; slonmax=wconfig['lonmax']
-slatmin=wconfig['latmin']; slatmax=wconfig['latmax']
 # number of ensemble members
 nenm=wconfig['nenm']
 # time resolution
@@ -101,6 +98,9 @@ tres=wconfig['tres']
 nmax=wconfig['nmax']
 # spatial window size (diameter), square (degrees)
 spws=wconfig['spws']
+# Plotting Area
+slonmin=wconfig['lonmin']-spws; slonmax=wconfig['lonmax']+spws
+slatmin=wconfig['latmin']-spws; slatmax=wconfig['latmax']+spws
 # Spatial percentile (grid points)
 spctl=wconfig['spctl']
 # gaussian filter spatial plot smoothing
@@ -216,8 +216,8 @@ fmod[fmod>=qqvmax]=np.nan; fmod[fmod<0.]=np.nan
 # Unit conversion
 fmod=fmod*umf
 # Select domain of interest
-indlat=np.where((lat>=slatmin)&(lat<=slatmax))
-indlon=np.where((lon>=slonmin)&(lon<=slonmax))
+indlat=np.where((lat>=(slatmin-spws))&(lat<=(slatmax+spws)))
+indlon=np.where((lon>=(slonmin-spws))&(lon<=(slonmax+spws)))
 if np.size(indlon)>0 and np.size(indlat)>0:
 	lat=np.copy(lat[indlat[0]]); lon=np.copy(lon[indlon[0]])
 	fmod=np.copy(fmod[:,:,indlat[0],:][:,:,:,indlon[0]])
@@ -231,37 +231,13 @@ fmodo=np.array(fmod.reshape(auxltime.shape[0]*nenm,lat.shape[0],lon.shape[0]))
 
 print(" 2. Initial Plots ...")
 wlevels=np.linspace(0,np.nanpercentile(fmod,99.99),101)
-## Max
-# plt.figure(figsize=(9,5.5))
-# ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
-# ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
-# gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
-# gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
-# cs=ax.contourf(lon,lat,np.nanmax(fmodo,axis=0),levels=wlevels,alpha=0.7,cmap='jet',zorder=1,extend="max",transform = ccrs.PlateCarree())
-# ax.add_feature(cartopy.feature.OCEAN,facecolor=("white"))
-# ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
-# ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
-# ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
-# title = "Max "+fvarname+" ("+funits+"), Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
-# title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
-# title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
-# ax.set_title(title); del title
-# plt.tight_layout()
-# ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.07, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
-# cbar = plt.colorbar(cs,cax=cax, orientation='horizontal', format='%g')
-# labels = np.arange(0, wlevels.max(),vtickd).astype('int'); ticks = np.arange(0, wlevels.max(),vtickd).astype('int')
-# cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
-# plt.axes(ax); plt.tight_layout()
-# plt.savefig(outpath+"Max_"+fvarname+"_"+fcycle+"_fcst"+np.str(ltime1).zfill(2)+"to"+np.str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
-# 	orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
-# plt.close('all'); del ax
-# print(" 2. Initial Plots. Max ok.")
 
 # Percentiles
 for i in range(0,pctls.shape[0]):
 	plt.figure(figsize=(9,5.5))
 	ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
-	ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
+	ax.set_extent([slonmin+spws,slonmax-spws,slatmin+spws,slatmax-spws], crs=ccrs.PlateCarree())
+	# ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
 	gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
 	gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
 	cs=ax.contourf(lon,lat,np.nanpercentile(fmodo,pctls[i],axis=0),levels=wlevels,alpha=0.7,cmap='jet',zorder=1,extend="max",transform = ccrs.PlateCarree())
@@ -291,15 +267,15 @@ fmod=np.sort(fmod,axis=0)
 fmod=np.copy(fmod[-nmax::,:,:,:])
 fmod=np.array(fmod.reshape(nmax*nenm,lat.shape[0],lon.shape[0]))
 
-spws=int(np.floor(spws/np.diff(lat).mean())/2)
+gspws=int(np.floor(spws/np.diff(lat).mean())/2)
 
 probecdf=np.zeros((qlev.shape[0],lat.shape[0],lon.shape[0]),'f')
 for i in range(0,qlev.shape[0]):
 	for j in range(0,lat.shape[0]):
 		for k in range(0,lon.shape[0]):
 			if np.any(fmod[:,j,k]>0.0):
-				if (j>=spws) and (j<=lat.shape[0]-spws) and (k>=spws) and (k<=lon.shape[0]-spws):
-					aux=np.array(fmod[:,(j-spws):(j+spws+1),:][:,:,(k-spws):(k+spws+1)])
+				if (j>=gspws) and (j<=lat.shape[0]-gspws) and (k>=gspws) and (k<=lon.shape[0]-gspws):
+					aux=np.array(fmod[:,(j-gspws):(j+gspws+1),:][:,:,(k-gspws):(k+gspws+1)])
 					aux=aux.reshape(nmax*nenm,aux.shape[1]*aux.shape[2])
 					aux=np.sort(aux,axis=1)
 					ind=np.where(np.mean(aux,axis=0)>=0.)
@@ -329,7 +305,8 @@ cmap = ListedColormap(pcolors)
 for i in range(0,qlev.shape[0]):
 	plt.figure(figsize=(9,5.5))
 	ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
-	ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
+	ax.set_extent([slonmin+spws,slonmax-spws,slatmin+spws,slatmax-spws], crs=ccrs.PlateCarree())
+	# ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
 	gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
 	gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
 	cs=ax.contourf(lon,lat,gaussian_filter(probecdf[i,:,:],gft),levels=plevels,alpha=0.7,cmap=cmap,zorder=1,transform = ccrs.PlateCarree())
