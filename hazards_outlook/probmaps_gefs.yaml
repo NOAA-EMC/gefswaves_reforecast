@@ -36,7 +36,7 @@ pctls:
 - 95
 - 99
 # tick/intervall in the colorbar of the initial plots
-vtickd_wnd: 2
+vtickd_wnd: 4
 vtickd_hs: 1
 vtickd_tp: 2
 
@@ -45,20 +45,20 @@ vtickd_tp: 2
 # https://en.wikipedia.org/wiki/Beaufort_scale
 # Saffir-Simpson Hurricane Wind (32.7)
 # 14 m/s (high wind, near gale), 17 (gale force), 22 (strong gale), 25 (whole gale), 28.5 beaufort 11 (violent storm), 32.7 hurricane force
+# in knots(*1.94):
 qlev_wnd:
-- 14.0
-- 17.0
-- 22.0
-- 25.0
-- 28.5
-- 32.7
+- 28.0
+- 34.0
+- 41.0
+- 48.0
+- 56.0
+- 64.0
 
 # 4 m (high wind, near gale), 5.5 (gale), 8.8 (Storm,whole gale, beaufort 10), beaufort 11 (violent storm), 14 (hurricane force)
 qlev_hs:
 - 4.0
-- 5.5
-- 8.8
-- 11.0
+- 6.0
+- 9.0
 - 14.0
 
 qlev_tp:

@@ -120,19 +120,23 @@ if "outpath" in wconfig:
 else:
 	outpath=""
 
+umf=1. # unit conversion, when necessary
+
 # maximum value allowed (quick quality control), variable name (grib2), and levels for the probability plot
 if fvarname.upper() == "U10":
 	qqvmax=wconfig['qqvmax_wnd']
 	mvar=wconfig['mvar_wnd']
-	funits=str('m/s')
 	qlev=np.array(wconfig['qlev_wnd']).astype('float')
 	vtickd=int(wconfig['vtickd_wnd'])
+	funits=str('knots')
+	umf=1.94 # m/s to knots
 elif fvarname.upper() == "WND":
 	qqvmax=wconfig['qqvmax_wnd']
 	mvar=wconfig['mvar_wnd']
-	funits=str('m/s')
+	funits=str('knots')
 	qlev=np.array(wconfig['qlev_wnd']).astype('float')
 	vtickd=int(wconfig['vtickd_wnd'])
+	umf=1.94 # m/s to knots
 elif fvarname.upper() == "HS":
 	qqvmax=wconfig['qqvmax_hs']
 	mvar=wconfig['mvar_hs']
@@ -209,6 +213,8 @@ for t in range(0,auxltime.shape[0]):
 
 # Quick simple quality control
 fmod[fmod>=qqvmax]=np.nan; fmod[fmod<0.]=np.nan
+# Unit conversion
+fmod=fmod*umf
 # Select domain of interest
 indlat=np.where((lat>=slatmin)&(lat<=slatmax))
 indlon=np.where((lon>=slonmin)&(lon<=slonmax))
