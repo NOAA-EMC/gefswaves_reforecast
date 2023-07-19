@@ -89,10 +89,10 @@ cd $DIR
 
 # Auxiliar pearl scripts
 # https://www.cpc.ncep.noaa.gov/products/wesley/fast_downloading_grib.html
-wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_inv.pl
-chmod 775 get_inv.pl
-wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_grib.pl
-chmod 775 get_grib.pl
+# wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_inv.pl
+# chmod 775 get_inv.pl
+# wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_grib.pl
+# chmod 775 get_grib.pl
 
 # create directory
 mkdir -p $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR
