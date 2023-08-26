@@ -16,7 +16,7 @@
 # USAGE:
 #  Two input arguments, date and path, must be entered.
 #  Example:
-#    sh download_AWSarchive_Field.sh 20220823 /home/ricardo/data/gefs
+#    bash download_AWSarchive_Field.sh 20220823 /home/ricardo/data/gefs
 #
 # OUTPUT:
 #  Multiple grib2 files, for each time step and ensemble member.
@@ -50,7 +50,7 @@ fleads="`seq -f "%03g" 0 6 384`"
 
 cd ${DIRW}
 for h in $fleads;do
-  echo " ======== GEFS Forecast, AWS archive: ${WTIME} 00Z  $h ========"
+  echo " ======== GEFS Forecast, AWS archive: ${CTIME} 00Z  $h ========"
   for e in $ensblm;do
     echo $e
     # size TAM and tries TRIES will control the process
