@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ########################################################################
-# gefsWaves_AWSarchive_field.sh
+# download_and_proc_AWSarchive_Field.sh
 #
 # VERSION AND LAST UPDATE:
 #   v1.0  02/15/2023
@@ -9,14 +9,14 @@
 # PURPOSE:
 #  Script to download NOAA Global Ensemble Forecast System (GEFS), Wave 
 #   Forecast from WAVEWATCH III operational. Download grib2 files from
-#   AWS archive, convert and compress to netcdf format. Only the control
+#   AWS archive, convert to netcdf format and compress. Only the control
 #   member and the ensemble mean are obtained.
 #   Global wind and wave fields.
 #
 # USAGE:
-#  Two input arguments, date and path, must be entered.
+#  Two input arguments, date and output path, must be entered.
 #  Example:
-#    sh gefsWaves_AWSarchive_field.sh 20220823 /home/ricardo/data/gefs
+#    bash download_and_proc_AWSarchive_Field.sh 20220823 /home/ricardo/data/gefs
 #
 # OUTPUT:
 #  Two netcdf files, one with the control member (c00) and one with the
@@ -41,6 +41,9 @@
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
+#
+#  If you are interested in operational forecasts from NOAA ftp, see:
+#  https://github.com/NOAA-EMC/WW3-tools/tree/develop/opforecast
 #
 ########################################################################
 
@@ -80,7 +83,7 @@ fleads=${h1}' '${h2}
 ensblm="c00 mean"
 
 for h in $fleads;do
-  echo " ======== GEFS Forecast, AWS archive: ${WTIME} 00Z  $h ========"
+  echo " ======== GEFS Forecast, AWS archive: ${CTIME} 00Z  $h ========"
   for e in $ensblm;do
     echo $e
     # size TAM and tries TRIES will control the process

@@ -10,13 +10,13 @@
 #  Script to download NOAA Global Ensemble Forecast System (GEFS), Wave 
 #   Forecast from WAVEWATCH III operational. Download from AWS archive
 #   and save the grib2 files without any conversion or processing. It
-#   includes the control and all members of the ensemble.
+#   includes the control and all perturbed members of the ensemble.
 #   Global wind and wave fields.
 #
 # USAGE:
 #  Two input arguments, date and path, must be entered.
 #  Example:
-#    sh download_AWSarchive_Field.sh 20220823 /home/ricardo/data/gefs
+#    bash download_AWSarchive_Field.sh 20220823 /home/ricardo/data/gefs
 #
 # OUTPUT:
 #  Multiple grib2 files, for each time step and ensemble member.
@@ -29,6 +29,9 @@
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
+#
+#  If you are interested in operational forecasts from NOAA ftp, see:
+#  https://github.com/NOAA-EMC/WW3-tools/tree/develop/opforecast
 #
 ########################################################################
 
@@ -47,7 +50,7 @@ fleads="`seq -f "%03g" 0 6 384`"
 
 cd ${DIRW}
 for h in $fleads;do
-  echo " ======== GEFS Forecast, AWS archive: ${WTIME} 00Z  $h ========"
+  echo " ======== GEFS Forecast, AWS archive: ${CTIME} 00Z  $h ========"
   for e in $ensblm;do
     echo $e
     # size TAM and tries TRIES will control the process
