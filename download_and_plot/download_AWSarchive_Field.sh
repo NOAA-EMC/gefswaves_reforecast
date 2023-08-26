@@ -10,7 +10,7 @@
 #  Script to download NOAA Global Ensemble Forecast System (GEFS), Wave 
 #   Forecast from WAVEWATCH III operational. Download from AWS archive
 #   and save the grib2 files without any conversion or processing. It
-#   includes the control and all members of the ensemble.
+#   includes the control and all perturbed members of the ensemble.
 #   Global wind and wave fields.
 #
 # USAGE:
@@ -29,6 +29,9 @@
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
+#
+#  If you are interested in operational forecasts from NOAA ftp, see:
+#  https://github.com/NOAA-EMC/WW3-tools/tree/develop/opforecast
 #
 ########################################################################
 

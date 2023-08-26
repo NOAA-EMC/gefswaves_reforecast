@@ -89,7 +89,7 @@ print(" "); print(" Reading yaml configuration file ...")
 with open('probmaps_gefs.yaml', 'r') as file:
 	wconfig = yaml.safe_load(file)
 
-ftag=np.str(wconfig['ftag'])
+ftag=str(wconfig['ftag'])
 # number of ensemble members
 nenm=wconfig['nenm']
 # time resolution
@@ -114,7 +114,7 @@ pcolors = np.array(wconfig['pcolors']).astype('str')
 
 # output path
 if "outpath" in wconfig:
-	outpath=np.str(wconfig['outpath'])
+	outpath=str(wconfig['outpath'])
 	if outpath[-1] != '/':
 		outpath=outpath+"/"
 else:
@@ -186,8 +186,8 @@ auxltime[auxltime>384]=384; auxltime[auxltime<0]=0
 c=0
 for t in range(0,auxltime.shape[0]):
 	for enm in range(0,nenm):
-		# fname="gefsWave."+fcycle+"/gefs.wave."+fcycle+"."+np.str(enm).zfill(2)+".global.0p25.f"+np.str(auxltime[t]).zfill(3)+".grib2"
-		fname="gefsWave."+fcycle+"/gefswave"+np.str(enm).zfill(2)+".t"+fcycle[-2::]+"z.pgrib2f"+np.str(auxltime[t]).zfill(3)+".grib2"
+		# fname="gefsWave."+fcycle+"/gefs.wave."+fcycle+"."+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
+		fname="gefsWave."+fcycle+"/gefswave"+str(enm).zfill(2)+".t"+fcycle[-2::]+"z.pgrib2f"+str(auxltime[t]).zfill(3)+".grib2"
 		if c==0:
 			ds = xr.open_dataset(fname, engine='cfgrib')
 			wtime = np.atleast_1d(np.array(ds.time.values))
@@ -200,7 +200,7 @@ for t in range(0,auxltime.shape[0]):
 		ind=np.nan
 		for i in range(0,len(glist)):
 			if mvar in str(glist[i]):
-				ind=np.int(i)
+				ind=int(i)
 		if ind>=0:
 			grb = grbs.select()[ind]
 			fmod[t,enm,:,:]=np.flip(grb.values,axis=0)
@@ -255,7 +255,7 @@ for i in range(0,pctls.shape[0]):
 	labels = np.arange(0, wlevels.max(),vtickd).astype('int'); ticks = np.arange(0, wlevels.max(),vtickd).astype('int')
 	cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
 	plt.axes(ax); plt.tight_layout()
-	plt.savefig(outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_"+fcycle+"_fcst"+np.str(ltime1).zfill(2)+"to"+np.str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
+	plt.savefig(outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_"+fcycle+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
 		orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
 	plt.close('all'); del ax
@@ -281,7 +281,7 @@ for i in range(0,qlev.shape[0]):
 					ind=np.where(np.mean(aux,axis=0)>=0.)
 					if np.size(ind)>0:
 						aux=np.array(aux[:,ind[0]])			
-						aux=np.array(aux[:,np.int(np.floor(aux.shape[1]*(spctl/100)))::])
+						aux=np.array(aux[:,int(np.floor(aux.shape[1]*(spctl/100)))::])
 						aux=aux.reshape(aux.shape[0]*aux.shape[1])
 						# 1054 for spws=2.0 and nmax=2 and spctl=80 (one week)
 						# 682 for spws=2.0 and nmax=2 and spctl=87 (one week)
@@ -314,7 +314,7 @@ for i in range(0,qlev.shape[0]):
 	ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
 	ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
 	ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
-	title = "Prob "+fvarname+">"+np.str(qlev[i]).zfill(1)+funits+", Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
+	title = "Prob "+fvarname+">"+str(qlev[i]).zfill(1)+funits+", Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
 	title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
 	title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
 	ax.set_title(title); del title
@@ -327,7 +327,7 @@ for i in range(0,qlev.shape[0]):
 		label.set_weight('bold')
 
 	plt.axes(ax); plt.tight_layout()
-	plt.savefig(outpath+"ProbMap_"+fvarname+"_"+np.str(qlev[i]).zfill(1)+"_"+fcycle+"_fcst"+np.str(ltime1).zfill(2)+"to"+np.str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
+	plt.savefig(outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_"+fcycle+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
 			orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
 	plt.close('all'); del ax

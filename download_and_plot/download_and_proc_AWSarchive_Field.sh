@@ -9,12 +9,12 @@
 # PURPOSE:
 #  Script to download NOAA Global Ensemble Forecast System (GEFS), Wave 
 #   Forecast from WAVEWATCH III operational. Download grib2 files from
-#   AWS archive, convert and compress to netcdf format. Only the control
+#   AWS archive, convert to netcdf format and compress. Only the control
 #   member and the ensemble mean are obtained.
 #   Global wind and wave fields.
 #
 # USAGE:
-#  Two input arguments, date and path, must be entered.
+#  Two input arguments, date and output path, must be entered.
 #  Example:
 #    sh gefsWaves_AWSarchive_field.sh 20220823 /home/ricardo/data/gefs
 #
@@ -41,6 +41,9 @@
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
+#
+#  If you are interested in operational forecasts from NOAA ftp, see:
+#  https://github.com/NOAA-EMC/WW3-tools/tree/develop/opforecast
 #
 ########################################################################
 
