@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ########################################################################
-# download_AWSreforecast_Field.sh
+# download_AWSreforecast_GEFS_Field.sh
 #
 # VERSION AND LAST UPDATE:
 #   v1.0  08/25/2023
@@ -16,7 +16,7 @@
 # USAGE:
 #  Two input arguments, date and path, must be entered.
 #  Example:
-#    bash download_AWSreforecast_Field.sh 20150823 /home/ricardo/data/gefs
+#    bash download_AWSreforecast_GEFS_Field.sh 20150823 /home/ricardo/data/gefs
 #
 # OUTPUT:
 #  Multiple grib2 files, for each ensemble member.
