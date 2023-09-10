@@ -70,7 +70,7 @@ for h in $fleads;do
   else
      wgrib2 ${arqn}.grib2 -netcdf ${arqn}.saux.nc  2>&1
      wait $!
-     cdo select,name='WIND_surface','HTSGW_surface' ${arqn}.saux.nc ${arqn}.saux2.nc
+     cdo select,name='WIND_surface','HTSGW_surface','PERPW_surface' ${arqn}.saux.nc ${arqn}.saux2.nc
      wait $!
      ncks --ppc default=.$dp ${arqn}.saux2.nc ${arqn}.nc  2>&1
      wait $!
@@ -78,7 +78,7 @@ for h in $fleads;do
      wait $!
      rm -f ${arqn}.grib2
      rm ${arqn}.saux*
-     echo " File ${arqn} converted to netcdf and compressed with success. " 
+     echo " File ${arqn} converted to netcdf and compressed with success. "
   fi
 
 done
