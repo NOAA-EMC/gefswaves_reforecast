@@ -237,13 +237,15 @@ def read_buoy(date,bid,anh,path_buoy):
     atime=np.array(auxltime*3600.+timegm( strptime(date,'%Y%m%d') )).astype('double')
     # year
     datestrg1=str(time.gmtime(atime[0])[0]); datestrg2=str(time.gmtime(atime[-1])[0])
-    print(" read_buoy "+str(date))
+    print(" read_buoy "+str(bid)+" "+str(date))
     if datestrg1 == datestrg2 :
         bdata=wread.tseriesnc_ndbc(path_buoy+str(bid)+"h"+datestrg1+".nc",anh=anh)
         bt=np.array(bdata['time']).astype('double')
         fbdata=np.array([bdata['wind_spd']])
         fbdata=np.append(fbdata,[bdata['hs']],axis=0)
         fbdata=np.append(fbdata,[bdata['tp']],axis=0)
+        ndbclat=float(bdata['latitude']); ndbclon=float(bdata['longitude'])
+        del bdata
     else:
         bdata1=wread.tseriesnc_ndbc(path_buoy+str(bid)+"h"+datestrg1+".nc")
         bdata2=wread.tseriesnc_ndbc(path_buoy+str(bid)+"h"+datestrg2+".nc")
@@ -251,6 +253,8 @@ def read_buoy(date,bid,anh,path_buoy):
         fbdata=np.array([np.append(bdata1['wind_spd'],bdata2['wind_spd'])])
         fbdata=np.append(fbdata,[np.append(bdata1['hs'],bdata2['hs'])],axis=0)
         fbdata=np.append(fbdata,[np.append(bdata1['tp'],bdata2['tp'])],axis=0)
+        ndbclat=float(bdata1['latitude']); ndbclon=float(bdata1['longitude'])
+        del bdata1,bdata2
 
     fdata=np.zeros((3,len(atime)),'f')*np.nan
     for i in range(0,len(atime)):
@@ -262,7 +266,7 @@ def read_buoy(date,bid,anh,path_buoy):
 
             del indt
 
-    return fdata, float(bdata['latitude']), float(bdata['longitude']), atime
+    return fdata, ndbclat, ndbclon, atime
 
 
 if __name__ == "__main__":
