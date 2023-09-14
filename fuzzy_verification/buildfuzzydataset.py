@@ -189,7 +189,8 @@ def read_gdas(date,blat,blon,wl,path_gdas):
     print(" read_gdas "+str(date))
     if datestrg1 == datestrg2 :
         f=nc.Dataset(path_gdas+"gdaswave."+str(datestrg1)+".global.0p25.nc")
-        t=f.variables['time'][:]; indt=np.where(np.isin(t,atime)==True)[0]
+        t=f.variables['time'][:]
+        indt=np.where(np.isin(t,atime)==True)[0]; inds=np.where(np.isin(atime,t[indt])==True)[0]
 
         lat=f.variables['latitude'][:]; lon=f.variables['longitude'][:]
 
@@ -204,14 +205,15 @@ def read_gdas(date,blat,blon,wl,path_gdas):
         fmod=np.zeros((len(mvar),len(atime),len(indlat),len(indlon)),'f')*np.nan
 
         for i in range(0,len(mvar)):
-            fmod[i,:,:,:]=np.array(f.variables[mvar[i]][indt,indlat,indlon])
+            fmod[i,inds,:,:]=np.array(f.variables[mvar[i]][indt,indlat,indlon])
 
     else:
 
         f1=nc.Dataset(path_gdas+"gdaswave."+str(datestrg1)+".global.0p25.nc")
         f2=nc.Dataset(path_gdas+"gdaswave."+str(datestrg2)+".global.0p25.nc")
 
-        t=np.append(f1.variables['time'][:],f2.variables['time'][:]) ; indt=np.where(np.isin(t,atime)==True)[0]
+        t=np.append(f1.variables['time'][:],f2.variables['time'][:])
+        indt=np.where(np.isin(t,atime)==True)[0]; inds=np.where(np.isin(atime,t[indt])==True)[0]
 
         lat=f1.variables['latitude'][:]; lon=f1.variables['longitude'][:]
 
@@ -226,7 +228,7 @@ def read_gdas(date,blat,blon,wl,path_gdas):
         fmod=np.zeros((len(mvar),len(atime),len(indlat),len(indlon)),'f')*np.nan
 
         for i in range(0,len(mvar)):
-            fmod[i,:,:,:]=np.array(np.append(f1.variables[mvar[i]][:,indlat,indlon],f1.variables[mvar[i]][:,indlat,indlon],axis=0)[indt,:,:])
+            fmod[i,inds,:,:]=np.array(np.append(f1.variables[mvar[i]][:,indlat,indlon],f2.variables[mvar[i]][:,indlat,indlon],axis=0)[indt,:,:])
 
     return fmod, np.array(lat[indlat]), np.array(lon[indlon]), atime
 
