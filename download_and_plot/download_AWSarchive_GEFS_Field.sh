@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ########################################################################
-# download_AWSarchive_Field.sh
+# download_AWSarchive_GEFS_Field.sh
 #
 # VERSION AND LAST UPDATE:
 #   v1.0  02/15/2023
@@ -16,7 +16,7 @@
 # USAGE:
 #  Two input arguments, date and path, must be entered.
 #  Example:
-#    bash download_AWSarchive_Field.sh 20220823 /home/ricardo/data/gefs
+#    bash download_AWSarchive_GEFS_Field.sh 20220823 /home/ricardo/data/gefs
 #
 # OUTPUT:
 #  Multiple grib2 files, for each time step and ensemble member.
