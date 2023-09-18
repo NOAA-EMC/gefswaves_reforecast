@@ -25,7 +25,7 @@
 # Hurricanes Atlantic
 # 2021 Sam, Ida
 # 2022 Fiona
-# 2023 Franklin
+# 2023 Franklin, Lee
 # Hurricanes Pacific
 # 2021 Felicia
 # 2022 Darby
