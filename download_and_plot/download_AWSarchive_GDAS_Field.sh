@@ -58,6 +58,8 @@ for h in $fleads;do
       TRIES=`expr $TRIES + 1`
     done
 done
+# remove empty data
+find $DIR -empty -type f -delete
 
 # Post-processing: convert to netcdf, compress, and reduce decimals resolution, to save disk space. ------------------
 for h in $fleads;do
