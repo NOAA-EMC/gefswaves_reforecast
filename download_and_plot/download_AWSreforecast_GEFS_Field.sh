@@ -103,7 +103,8 @@ for e in $ensblm;do
     TRIES=`expr $TRIES + 1`
   done
 done
-
+# remove empty data
+find $DIR -empty -type f -delete
 echo " "
 echo " Done ${CTIME}."
 

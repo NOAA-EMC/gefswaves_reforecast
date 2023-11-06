@@ -88,6 +88,8 @@ for h in $fleads;do
     done
   done
 done
+# remove empty data
+find $DIR -empty -type f -delete
 
 echo " Done ${CTIME}."
 

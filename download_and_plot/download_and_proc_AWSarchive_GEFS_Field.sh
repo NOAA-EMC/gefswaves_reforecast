@@ -122,6 +122,8 @@ for h in $fleads;do
   done
 done
 sleep 1
+# remove empty data
+find $DIR -empty -type f -delete
 
 cd $DIRW
 
