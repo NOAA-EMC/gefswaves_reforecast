@@ -5,165 +5,112 @@
 #
 # VERSION AND LAST UPDATE:
 #   v1.0  06/09/2023
+#   v1.1  01/04/2024
 #
 # PURPOSE:
-#  Script to download NOAA Global Ensemble Forecast System (GEFS), marine
-#   forecast, and generate the Probability Maps (Global Hazard Outlooks)
+#  Script to generate Probability Maps (Global Hazard Outlooks) of significant
+#   wave height (Hs) and 10-m wind speed (U10) for week-2 forecast based on
+#   NOAA GEFSv12 wave ensemble forecast.
+#  This shell script cheks forecast files exist, and runs the python script
+#   probmaps_gefs.py reading the path where it is located in the configuration
+#   file probmaps_gefs.yaml
 #
 # USAGE:
-#  This shell script is divided in two parts: the first one to download
-#    operational forecast files, and the second one to produce the 
-#    probability maps using a python script, probmaps_gefs.py.
-#  The shell script requires one argument for the path where the 
-#    codes and files are saved (or symbolic link): probmaps_gefs.sh, 
-#    probmaps_gefs.py, probmaps_gefs.yaml; and where a directory will be
-#    created to download the operational files.
-#  Before starting the download, two auxiliar pearl scripts are downloaded,
-#    get_grib.pl and get_inv.pl, which allows to fetch only specific
-#    variables. If you already have those files, feel free to comment these
-#    lines. They must be in the same directory you are running this script.
-#  By default it downloads the forecast from the current day cycle (00Z),
-#    with 6-h of time step up to 384 hours (16 days)
-#  The python script probmaps_gefs.py is called at the end of this script, 
-#    and it requires the configuration file probmaps_gefs.yaml. It is
-#    IMPORTANT to edit the outpath variable in probmaps_gefs.yaml, which
+#  This code expects the GEFv12 files are downloaded (see download_GEFSwaves.sh),
+#    the path where .grib2 files are located must be saved in the probmaps_gefs.yaml
+#    file, variable gefspath
+#  This program reads probmaps_gefs.yaml, where the path+name of the python script
+#   probmaps_gefs.py is located (users must edit variable pyscript).
+#  The last configuration edit is the variable outpath in probmaps_gefs.yaml, which
 #    is the location where the final plots will be saved. Once the .yaml
 #    is configured, there is no need to change in the daily basis, unless
 #    you want to modify the destination path or any other configuration.
+#  Before running the python script, python must be loaded and activated. Please 
+#    customize this part at the end (lines 102 and 103).
 #
 #  Example:
-#    ./probmaps_gefs.sh /home/user/path
-#  or
-#    bash probmaps_gefs.sh /home/user/path
+#    bash probmaps_gefs.sh /media/name/test/probmaps_gefs.yaml
 #
 # OUTPUT:
-#  There are two outputs:
-#  (1) One cycle of NOAA's GEFS Waves operational forecast, including all 
-#    the 30 members plus the control member, in grib2 format. A directory
-#    gefsWave.$YEAR$MONTH$DAY$HOUR is generated containing the data, plus
-#    a log file logGEFS_$YEAR$MONTH$DAY$HOUR.
-#  (2) Figures containing the probability maps, saved in the directory
-#    outpath informed in the probmaps_gefs.yaml file
+#  Figures containing the probability maps, saved in the directory
+#    outpath informed in the probmaps_gefs.yaml file.
 #
 # DEPENDENCIES:
-#  pearl and python (see dependencies in probmaps_gefs.py). 
-#    In most linux systems, pearl is already included.
-#  For the python installation, it is recommended:
-#    https://www.anaconda.com/download
+#  The python code probmaps_gefs.py contains the module dependencies.
 #
 # AUTHOR and DATE:
 #  06/09/2023: Ricardo M. Campos, first version 
+#  01/04/2024: Ricardo M. Campos, the download of GEFS was removed from here,
+#    which is now download_GEFSwaves.sh
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
 #
 ########################################################################
 
-# Path where the following codes and files are saved (or symbolic link):
-# probmaps_gefs.sh, probmaps_gefs.py, probmaps_gefs.yaml
-# and where a directory will be created to download operational files
-DIR="$1"
-# The output path where figures/plots will be saved is written in the
-# configuration file probmaps_gefs.yaml
+# INPUT ARGUMENT
+# .yaml configuration file containing paths and information for this
+#   shell script as well as for the python code.
+PYCYAML="$1"
+# PYCYAML="/media/ricardo/ssdrmc/analysis/products/probmaps/probmaps_gefs.yaml"
 
-# NOAA server address
-SERVER=https://ftpprd.ncep.noaa.gov/
-s1="global.0p25" # main grid
+# Read the YAML as a text file:
+#  GEFS data path
+gefspath_line=$(grep 'gefspath' "${PYCYAML}")
+GEFSMDIR=$(echo "$gefspath_line" | awk -F': ' '{print $2}')
+#  Python script (probability maps)
+pyscript_line=$(grep 'pyscript' "${PYCYAML}")
+PYSCRIPT=$(echo "$pyscript_line" | awk -F': ' '{print $2}')
+#  Variable names, for the python processing (probability maps)
+mvars_line=$(grep 'mvars' "${PYCYAML}")
+MVARS=$(echo "$mvars_line" | awk -F': ' '{gsub(/"/, "", $2); print $2}')
 
-# variable names to be downloaded. Wind speed, significant wave height, and peak period.
-VARSGET=":WIND:surface:|:HTSGW:surface:|:PERPW:surface:"
-# Corresponding variables for the python processing
-MVARS="U10 Hs Tp"
-
-# Initial date cycle for the ftp
+# Intended forecast cycle
 YEAR=`date +%Y`
 MONTH=`date +%m`
 DAY=`date +%d`
-# pa=2 #  days into the past. pa=1 dowloades data from yesterday's cycle
+# pa=2 #  days into the past. pa=1 runs using yesterday's cycle
 # YEAR=`date --date=-$pa' day' '+%Y'`
 # MONTH=`date --date=-$pa' day' '+%m'`
 # DAY=`date --date=-$pa' day' '+%d'`
 HOUR="00" # first cycle 00Z
 
-cd $DIR
+# Check GEFv12 is complete and ready.
+# If not, it waits for 5 min and then try again (max 12 hours)
+FSIZE=0
+TRIES=1
 
-# Auxiliar pearl scripts
-# https://www.cpc.ncep.noaa.gov/products/wesley/fast_downloading_grib.html
-# wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_inv.pl
-# chmod 775 get_inv.pl
-# wget --no-check-certificate --no-proxy -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ftp://ftp.cpc.ncep.noaa.gov/wd51we/fast_downloading_grib/get_grib.pl
-# chmod 775 get_grib.pl
+while [ $FSIZE -lt 1000000 ] && [ $TRIES -le 144 ]; do
 
-# create directory
-mkdir -p $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR
-# all information about fetching and processing the grib2 files will be saved in the log file 
-echo "  " > $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR
+  # wait 5 minutes until next try
+  if [ ${TRIES} -gt 5 ]; then
+    sleep 300
+  fi
+  # Check if the last file (member 30, lead time 384h) is complete
+  test -f $GEFSMDIR/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p30.global.0p25.f384.grib2
+  TE=$?
+  if [ ${TE} -eq 1 ]; then
+    FSIZE=0
+  else
+    FSIZE=`du -sb $GEFSMDIR/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p30.global.0p25.f384.grib2`
+  fi
 
-# hours of forecast lead time to be dowloaded. For now, using 6-h or time resolution
-fleads="`seq -f "%03g" 0 6 384`"
-# number of ensemble members
-ensblm="`seq -f "%02g" 0 1 30`"
-#
-for h in $fleads;do
-  for e in $ensblm;do
+  TRIES=`expr $TRIES + 1`
 
-    echo "  " >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR
-    echo " ======== GEFS Forecast: $YEAR$MONTH$DAY$HOUR  $h ========" >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR 
-
-    # size TAM and tries TRIES will control the process
-    TAM=0
-    TRIES=1
-    # while file has lower size than expected it does:
-    while [ $TAM -lt 1000000 ] && [ $TRIES -le 130 ]; do
-      # sleep 5 minutes between attemps
-      if [ ${TRIES} -gt 5 ]; then
-        sleep 300
-      fi
-
-      if [ ${TAM} -lt 1000000 ]; then
-          echo "  " >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR
-          echo " attempt number: $TRIES" >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR
-          echo "  " >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR
-          # main line where get_inv.pl and get_grib.pl are used to fech the grib2 file
-          if [ ${e} == 00 ]; then
-             $DIR/get_inv.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIR/get_grib.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/gefswave${e}.t${HOUR}z.pgrib2f"$(printf "%03.f" $h)".grib2 >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
-          else
-             $DIR/get_inv.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIR/get_grib.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/gefswave${e}.t${HOUR}z.pgrib2f"$(printf "%03.f" $h)".grib2 >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
-          fi
-          # test if the downloaded file exists
-          test -f $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/gefswave${e}.t${HOUR}z.pgrib2f"$(printf "%03.f" $h)".grib2 >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
-          TE=$?
-          if [ ${TE} -eq 1 ]; then
-            TAM=0
-          else
-            # check size of each file
-            TAM=`du -sb $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/gefswave${e}.t${HOUR}z.pgrib2f"$(printf "%03.f" $h)".grib2 | awk '{ print $1 }'` >> $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
-          fi
-      fi
-
-      TRIES=`expr $TRIES + 1`
-    done
-  done
 done
-sleep 2
-# permissions
-chmod -R 775 $DIR/gefsWave.$YEAR$MONTH$DAY$HOUR
-# Download complete. Starting python processing
 
-# activate python 
+# Module load python and activate environment when necessary.
 source /home/ricardo/python/anaconda3/setanaconda3.sh
 
-echo "  " > $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR
-echo " PYTHON ENSEMBLE PROCESSING: GLOBAL HAZARDS OUTLOOK - PROBABILITY MAPS, $YEAR$MONTH$DAY$HOUR " >> $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR
+echo "  "
+echo " PYTHON PROCESSING: GLOBAL HAZARDS OUTLOOK - PROBABILITY MAPS, $YEAR$MONTH$DAY$HOUR "
+echo "  "
 # loop through variables
 for WW3VAR in ${MVARS[*]}; do
-  # the 7 14 is the time intervall (days), so week 2 is from day 7 to day 14 (included)
-  python3 probmaps_gefs.py $YEAR$MONTH$DAY$HOUR 7 14 ${WW3VAR} >> $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR 2>&1
-  wait $!
-  echo "  " >> $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR
-  echo "     ${WW3VAR} Done for Week 2." >> $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR
-  echo "  " >> $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR
+  # 7 14 is the time intervall (days) for week 2
+  python3 ${PYSCRIPT} ${PYCYAML} $YEAR$MONTH$DAY$HOUR 7 14 ${WW3VAR}
+  echo " Probability maps for ${WW3VAR} Ok." 
 done
-
-echo "  PYTHON PROCESSING COMPLETE" >> $DIR/logPythonOP_$YEAR$MONTH$DAY$HOUR
+echo "  "
+echo " PYTHON PROCESSING COMPLETE."
 

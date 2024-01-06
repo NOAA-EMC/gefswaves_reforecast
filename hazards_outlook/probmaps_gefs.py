@@ -6,11 +6,12 @@ probmaps_gefs.py
 
 VERSION AND LAST UPDATE:
  v1.0  06/09/2023
+ v2.0  01/06/2024
 
 PURPOSE:
  This program makes the probability maps based on the NOAA Global Ensemble
   Forecast System (GEFS), marine forecast. It requires the grib2 files to
-  have been previously downloaded.
+  have been previously downloaded (see download_GEFSwaves.sh)
  The global hazards outlook (probability map) shows the probability of 
   certain variable (wind speed, significant wave height, and peak period)
   to have at least one value above certain pre-defined level within the given
@@ -20,26 +21,23 @@ PURPOSE:
   qlev (defined in probmaps_gefs.yaml) during this week (for each grid point).
 
 USAGE:
- The information is passed to the script through 4 input arguments and 
-  one configuration file (probmaps_gefs.yaml).
- There are 4 input arguments:
-  1) forecast cycle (YYYYMMDDHH) that will be used to compute the probabilities;
-  2) initial day to define the time interval to calculate the statistics;
-  3) final day to define the time interval to calculate the statistics;
-  4) variable (select only one) to be processed: U10, Hs, Tp
- The configuration file saves fixed information. The most IMPORTANT variable
-  to edit is the outpath, containing the location where the results (.png 
-  figures) will be saved.
- This script must be run for each variable (U10, Hs, Tp) separately.
+ The information is passed to the script through 5 input arguments:
+  1) .yaml configuration file probmaps_gefs.yaml;
+  2) forecast cycle (YYYYMMDDHH) that will be used to compute the probabilities;
+  3) initial day to define the time interval to calculate the statistics;
+  4) final day to define the time interval to calculate the statistics;
+  5) variable (select only one) to be processed: U10 or Hs
+ The configuration probmaps_gefs.yaml contains the fixed information.
+ This script must be run for each variable (U10, Hs) separately.
  See the probmaps_gefs.yaml for more specific information and how to calibrate
   the probabilities and customize the plots.
 
  Example (from linux terminal command line):
-  python3 probmaps_gefs.py 2023060900 7 14 Hs
-  nohup python3 probmaps_gefs.py 2023060900 7 14 Hs >> nohup_probmaps_gefs.out 2>&1 &
+  python3 probmaps_gefs.py probmaps_gefs.yaml 2023060900 7 14 Hs
+  nohup python3 probmaps_gefs.py probmaps_gefs.yaml 2023060900 7 14 Hs >> nohup_probmaps_gefs.out 2>&1 &
 
 OUTPUT:
- .png figures (probability maps) saved in the outpath directory informed in
+ png and kmz figures (probability maps) saved in the outpath directory informed in
  the configuration file probmaps_gefs.yaml
 
 DEPENDENCIES:
@@ -47,6 +45,9 @@ DEPENDENCIES:
 
 AUTHOR and DATE:
  06/09/2023: Ricardo M. Campos, first version.
+ 01/06/2024: Ricardo M. Campos, kmz format added and variable Tp removed. The date
+  has been removed from the output file name (figure) so it can be replaced automatically
+  aften each new run.
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
@@ -59,6 +60,7 @@ matplotlib.use('Agg')
 import pygrib
 import xarray as xr
 import matplotlib.pyplot as plt
+import zipfile
 import yaml
 from matplotlib.colors import ListedColormap
 from scipy.ndimage.filters import gaussian_filter
@@ -76,20 +78,24 @@ matplotlib.rcParams.update({'font.size': sl}); plt.rc('font', size=sl)
 matplotlib.rc('xtick', labelsize=sl); matplotlib.rc('ytick', labelsize=sl); matplotlib.rcParams.update({'font.size': sl})
 
 # Input Arguments -----
+# .yaml configuration file
+fconfig=str(sys.argv[1])
 # Forecast Cycle
-fcycle=str(sys.argv[1])
+fcycle=str(sys.argv[2])
+fcdate=str(fcycle[0:8]); fchour=str(fcycle[8:10])
 # Forecast Lead Time (Day) and intervall
-ltime1=int(sys.argv[2])
-ltime2=int(sys.argv[3])
+ltime1=int(sys.argv[3])
+ltime2=int(sys.argv[4])
 # forecast variable: U10, Hs, Tp
-fvarname=str(sys.argv[4])
+fvarname=str(sys.argv[5])
 
 # Fixed configuration variables, read yaml file -----------
 print(" "); print(" Reading yaml configuration file ...")
-with open('probmaps_gefs.yaml', 'r') as file:
+with open(fconfig, 'r') as file:
     wconfig = yaml.safe_load(file)
 
 ftag=str(wconfig['ftag'])
+
 # number of ensemble members
 nenm=wconfig['nenm']
 # time resolution
@@ -112,13 +118,15 @@ plevels = np.array(wconfig['plevels']).astype('float')
 # Colors for the probability maps
 pcolors = np.array(wconfig['pcolors']).astype('str')
 
+# Path of GEFSv12 grib2 files
+gefspath=wconfig['gefspath']
+if gefspath[-1] != '/':
+    gefspath=gefspath+"/"
+
 # output path
-if "outpath" in wconfig:
-    outpath=str(wconfig['outpath'])
-    if outpath[-1] != '/':
-        outpath=outpath+"/"
-else:
-    outpath=""
+outpath=str(wconfig['outpath'])
+if outpath[-1] != '/':
+    outpath=outpath+"/"
 
 umf=1. # unit conversion, when necessary
 
@@ -143,14 +151,8 @@ elif fvarname.upper() == "HS":
     funits=str('m')
     qlev=np.array(wconfig['qlev_hs']).astype('float')
     vtickd=int(wconfig['vtickd_hs'])
-elif fvarname.upper() == "TP":
-    qqvmax=wconfig['qqvmax_tp']
-    mvar=wconfig['mvar_tp']
-    funits=str('s')
-    qlev=np.array(wconfig['qlev_tp']).astype('float')
-    vtickd=int(wconfig['vtickd_tp'])
 else:
-    sys.exit(" Input variable "+fvarname+" not included in the list. Please select only one: u10, hs, tp.")
+    sys.exit(" Input variable "+fvarname+" not included in the list. Please select only one: u10, hs.")
 
 del wconfig
 print(" Reading yaml configuration file, OK."); print(" ")
@@ -186,8 +188,12 @@ auxltime[auxltime>384]=384; auxltime[auxltime<0]=0
 c=0
 for t in range(0,auxltime.shape[0]):
     for enm in range(0,nenm):
-        # fname="gefsWave."+fcycle+"/gefs.wave."+fcycle+"."+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
-        fname="gefsWave."+fcycle+"/gefswave"+str(enm).zfill(2)+".t"+fcycle[-2::]+"z.pgrib2f"+str(auxltime[t]).zfill(3)+".grib2"
+
+        if enm==0:
+            fname=gefspath+"gefs."+fcdate+"/"+fchour+"/wave/gridded/gefs.wave.t"+fchour+"z.c"+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
+        else:
+            fname=gefspath+"gefs."+fcdate+"/"+fchour+"/wave/gridded/gefs.wave.t"+fchour+"z.p"+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
+
         if c==0:
             ds = xr.open_dataset(fname, engine='cfgrib')
             wtime = np.atleast_1d(np.array(ds.time.values))
@@ -255,10 +261,16 @@ for i in range(0,pctls.shape[0]):
     labels = np.arange(0, wlevels.max(),vtickd).astype('int'); ticks = np.arange(0, wlevels.max(),vtickd).astype('int')
     cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
     plt.axes(ax); plt.tight_layout()
-    plt.savefig(outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_"+fcycle+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
+    figname = outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
+    plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
-    plt.close('all'); del ax
+    plt.close('all')
+    # convert to kmz
+    with zipfile.ZipFile(figname+".kmz", "w") as kmz:
+        kmz.write(figname+".png")
+
+    del ax, figname
     print(" 2. Initial Plots. Percentile "+str(pctls[i]).zfill(2)+" ok.")
 
 print(" "); print(" 3. Space-Time Cells and Probabilities ...")
@@ -327,10 +339,18 @@ for i in range(0,qlev.shape[0]):
         label.set_weight('bold')
 
     plt.axes(ax); plt.tight_layout()
-    plt.savefig(outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_"+fcycle+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag+".png", dpi=200, facecolor='w', edgecolor='w',
+
+    figname = outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
+    plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
             orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
-    plt.close('all'); del ax
+    plt.close('all')
+
+    # convert to kmz
+    with zipfile.ZipFile(figname+".kmz", "w") as kmz:
+        kmz.write(figname+".png")
+
+    del ax, figname
     print("   Plot ... qlev "+repr(qlev[i]))
 
 print(" 4. Probability Plots ... OK"); print(" ")
