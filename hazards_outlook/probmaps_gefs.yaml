@@ -45,6 +45,7 @@ pctls:
 # Levels for the probability plots:
 # Wind speed in knots
 qlev_wnd:
+- 34.0
 - 41.0
 - 48.0
 - 56.0
