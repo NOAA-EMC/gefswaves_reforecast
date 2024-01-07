@@ -46,9 +46,7 @@ pctls:
 # Wind speed in knots
 qlev_wnd:
 - 34.0
-- 41.0
-- 48.0
-- 56.0
+- 50.0
 - 64.0
 # Significant wave height in meters
 qlev_hs:
