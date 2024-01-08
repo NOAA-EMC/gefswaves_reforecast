@@ -26,7 +26,7 @@ USAGE:
   2) forecast cycle (YYYYMMDDHH) that will be used to compute the probabilities;
   3) initial day to define the time interval to calculate the statistics;
   4) final day to define the time interval to calculate the statistics;
-  5) variable (select only one) to be processed: U10 or Hs
+  5) variable (select only one) to be processed: U10 or Hs;
  The configuration probmaps_gefs.yaml contains the fixed information.
  This script must be run for each variable (U10, Hs) separately.
  See the probmaps_gefs.yaml for more specific information and how to calibrate
@@ -295,9 +295,6 @@ for i in range(0,qlev.shape[0]):
                         aux=np.array(aux[:,ind[0]])            
                         aux=np.array(aux[:,int(np.floor(aux.shape[1]*(spctl/100)))::])
                         aux=aux.reshape(aux.shape[0]*aux.shape[1])
-                        # 1054 for spws=2.0 and nmax=2 and spctl=80 (one week)
-                        # 682 for spws=2.0 and nmax=2 and spctl=87 (one week)
-                        # 558 for spws=2.0 and nmax=2 and spctl=90 (one week)
                         probecdf[i,j,k] = np.size(aux[aux>qlev[i]]) / np.size(aux[aux>0.])
 
                     del aux

@@ -20,7 +20,7 @@
 #    expected size of each grib2 file downloaded.
 #  This script does not convert/modify format and does not compress files.
 #  By default it downloads the operational forecast of the current day.
-#    If you want files from previous, uncomment the lines and 
+#    If you want files from previous days, uncomment the lines and 
 #    set pa=1
 #
 # OUTPUT:

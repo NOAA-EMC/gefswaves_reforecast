@@ -19,7 +19,7 @@
 #  This code expects the GEFv12 files are downloaded (see download_GEFSwaves.sh),
 #    the path where .grib2 files are located must be saved in the probmaps_gefs.yaml
 #    file, variable gefspath
-#  This program reads probmaps_gefs.yaml, where the path+name of the python script
+#  It reads probmaps_gefs.yaml, where the path+name of the python script
 #   probmaps_gefs.py is located (users must edit variable pyscript).
 #  The last configuration edit is the variable outpath in probmaps_gefs.yaml, which
 #    is the location where the final plots will be saved. Once the .yaml
