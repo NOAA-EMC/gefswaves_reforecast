@@ -279,8 +279,8 @@ if __name__ == "__main__":
     # start time
     start = timeit.default_timer()
 
-    # spatial window 
-    wl=5 # (°)
+    # spatial window radius(diameter/2)
+    wl=3 # (°)
     # number of ensemble members
     nenm=int(30+1)
     # Data paths

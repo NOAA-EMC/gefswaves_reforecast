@@ -26,9 +26,9 @@ USAGE:
   2) forecast cycle (YYYYMMDDHH) that will be used to compute the probabilities;
   3) initial day to define the time interval to calculate the statistics;
   4) final day to define the time interval to calculate the statistics;
-  5) variable (select only one) to be processed: U10 or Hs;
+  5) variable (select only one) to be processed: WS10 or Hs;
  The configuration probmaps_gefs.yaml contains the fixed information.
- This script must be run for each variable (U10, Hs) separately.
+ This script must be run for each variable (WS10, Hs) separately.
  See the probmaps_gefs.yaml for more specific information and how to calibrate
   the probabilities and customize the plots.
 
@@ -86,7 +86,7 @@ fcdate=str(fcycle[0:8]); fchour=str(fcycle[8:10])
 # Forecast Lead Time (Day) and intervall
 ltime1=int(sys.argv[3])
 ltime2=int(sys.argv[4])
-# forecast variable: U10, Hs, Tp
+# forecast variable: WS10, Hs, Tp
 fvarname=str(sys.argv[5])
 
 # Fixed configuration variables, read yaml file -----------
@@ -131,19 +131,12 @@ if outpath[-1] != '/':
 umf=1. # unit conversion, when necessary
 
 # maximum value allowed (quick quality control), variable name (grib2), and levels for the probability plot
-if fvarname.upper() == "U10":
+if fvarname.upper() == "WS10" or fvarname.upper() == "WND" or fvarname.upper() == "U10":
     qqvmax=wconfig['qqvmax_wnd']
     mvar=wconfig['mvar_wnd']
     qlev=np.array(wconfig['qlev_wnd']).astype('float')
     vtickd=int(wconfig['vtickd_wnd'])
     funits=str('knots')
-    umf=1.94 # m/s to knots
-elif fvarname.upper() == "WND":
-    qqvmax=wconfig['qqvmax_wnd']
-    mvar=wconfig['mvar_wnd']
-    funits=str('knots')
-    qlev=np.array(wconfig['qlev_wnd']).astype('float')
-    vtickd=int(wconfig['vtickd_wnd'])
     umf=1.94 # m/s to knots
 elif fvarname.upper() == "HS":
     qqvmax=wconfig['qqvmax_hs']
@@ -152,7 +145,7 @@ elif fvarname.upper() == "HS":
     qlev=np.array(wconfig['qlev_hs']).astype('float')
     vtickd=int(wconfig['vtickd_hs'])
 else:
-    sys.exit(" Input variable "+fvarname+" not included in the list. Please select only one: u10, hs.")
+    sys.exit(" Input variable "+fvarname+" not included in the list. Please select only one: WS10, Hs.")
 
 del wconfig
 print(" Reading yaml configuration file, OK."); print(" ")
@@ -256,11 +249,12 @@ for i in range(0,pctls.shape[0]):
     title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
     ax.set_title(title); del title
     plt.tight_layout()
-    ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.07, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
+    ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.06, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
     cbar = plt.colorbar(cs,cax=cax, orientation='horizontal', format='%g')
     labels = np.arange(0, wlevels.max(),vtickd).astype('int'); ticks = np.arange(0, wlevels.max(),vtickd).astype('int')
     cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
     plt.axes(ax); plt.tight_layout()
+    plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
     figname = outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
@@ -328,7 +322,7 @@ for i in range(0,qlev.shape[0]):
     title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
     ax.set_title(title); del title
     plt.tight_layout()
-    ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.07, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
+    ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.06, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
     cbar = plt.colorbar(cs,cax=cax, orientation='horizontal',ticks=clevels, format='%g')
     cbar.ax.set_xticklabels(clabels)
     cbar.ax.tick_params(length=0)
@@ -336,7 +330,7 @@ for i in range(0,qlev.shape[0]):
         label.set_weight('bold')
 
     plt.axes(ax); plt.tight_layout()
-
+    plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
     figname = outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
             orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)

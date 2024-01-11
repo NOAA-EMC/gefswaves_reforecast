@@ -13,7 +13,7 @@ outpath: /media/ricardo/ssdrmc/analysis/products/probmaps/optest
 ftag: GEFSv12
 
 # Variable names
-mvars: "U10 Hs"
+mvars: "WS10 Hs"
 # Variable names in the grib2 file (opening with pygrib)
 mvar_wnd: "Wind speed"
 mvar_hs: "Significant height of combined wind waves and swell"
@@ -46,7 +46,7 @@ pctls:
 # Wind speed in knots
 qlev_wnd:
 - 34.0
-- 50.0
+- 48.0
 - 64.0
 # Significant wave height in meters
 qlev_hs:
