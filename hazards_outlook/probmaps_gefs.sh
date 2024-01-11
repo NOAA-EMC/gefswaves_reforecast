@@ -9,7 +9,7 @@
 #
 # PURPOSE:
 #  Script to generate Probability Maps (Global Hazard Outlooks) of significant
-#   wave height (Hs) and 10-m wind speed (U10) for week-2 forecast based on
+#   wave height (Hs) and 10-m wind speed (WS10) for week-2 forecast based on
 #   NOAA GEFSv12 wave ensemble forecast.
 #  This shell script cheks forecast files exist, and runs the python script
 #   probmaps_gefs.py reading the path where it is located in the configuration

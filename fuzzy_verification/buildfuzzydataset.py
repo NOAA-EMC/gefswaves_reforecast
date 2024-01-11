@@ -279,8 +279,8 @@ if __name__ == "__main__":
     # start time
     start = timeit.default_timer()
 
-    # spatial window 
-    wl=5 # (°)
+    # spatial window radius(diameter/2)
+    wl=3 # (°)
     # number of ensemble members
     nenm=int(30+1)
     # Data paths
@@ -330,8 +330,8 @@ if __name__ == "__main__":
     fbmlon=np.array(ds_buoy['Lon']).astype('float'); fbmlon[fbmlon>180]=fbmlon[fbmlon>180]-360.
 
     # Save netcdf output file
-    ncfile = nc.Dataset(outpath+"GEFS.GDAS.BUOY.3PointExtract."+date+".nc", "w", format=fnetcdf)
-    ncfile.history="Data extracted for 3 NDBC buoy position and neighbouring points using 10X10 degree window."
+    ncfile = nc.Dataset(outpath+"GEFS.GDAS.BUOY.PointExtract."+date+".nc", "w", format=fnetcdf)
+    ncfile.history="Data extracted for NDBC buoy positions and neighbouring points."
     # create  dimensions.
     ncfile.createDimension('buoy_points', len(ds_buoy))
     ncfile.createDimension('ensemble_member', nenm)
@@ -377,7 +377,7 @@ if __name__ == "__main__":
     vu10_ndbc[:,:]=fbuoy_data[:,0,:]; vhs_ndbc[:,:]=fbuoy_data[:,1,:]; vtp_ndbc[:,:]=fbuoy_data[:,2,:]
     ncfile.close()
     print(' ')
-    print("Done. Netcdf ok. New file saved: "+outpath+"GEFS.GDAS.BUOY.3PointExtract."+date+".nc")
+    print("Done. Netcdf ok. New file saved: "+outpath+"GEFS.GDAS.BUOY.PointExtract."+date+".nc")
 
     stop = timeit.default_timer()
     print('Concluded in '+repr(int(round(stop - start,0)))+' seconds')
