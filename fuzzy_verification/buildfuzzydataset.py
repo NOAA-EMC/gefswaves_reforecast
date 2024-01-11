@@ -330,7 +330,7 @@ if __name__ == "__main__":
     fbmlon=np.array(ds_buoy['Lon']).astype('float'); fbmlon[fbmlon>180]=fbmlon[fbmlon>180]-360.
 
     # Save netcdf output file
-    ncfile = nc.Dataset(outpath+"GEFS.GDAS.BUOY.3PointExtract."+date+".nc", "w", format=fnetcdf)
+    ncfile = nc.Dataset(outpath+"GEFS.GDAS.BUOY.PointExtract."+date+".nc", "w", format=fnetcdf)
     ncfile.history="Data extracted for 3 NDBC buoy position and neighbouring points using 10X10 degree window."
     # create  dimensions.
     ncfile.createDimension('buoy_points', len(ds_buoy))
