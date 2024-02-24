@@ -30,7 +30,7 @@ tres: 6
 # n-max expansion (select not only the single max value in the time-series but the n-max ones, for each member)
 nmax: 2
 # spatial window size (degrees). In this case, square of 2°X2°
-spws: 2
+spws: 2.0
 # Spatial percentile (select only the most severe neighbouring points within spws, i.e., records > spctl)
 spctl: 87
 

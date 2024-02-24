@@ -64,6 +64,9 @@ PYSCRIPT=$(echo "$pyscript_line" | awk -F': ' '{print $2}')
 #  Variable names, for the python processing (probability maps)
 mvars_line=$(grep 'mvars' "${PYCYAML}")
 MVARS=$(echo "$mvars_line" | awk -F': ' '{gsub(/"/, "", $2); print $2}')
+#  Output path
+outpath_line=$(grep 'outpath' "${PYCYAML}")
+OUTPATH=$(echo "$outpath_line" | awk -F': ' '{print $2}')
 
 # Intended forecast cycle
 YEAR=`date +%Y`
@@ -113,4 +116,12 @@ for WW3VAR in ${MVARS[*]}; do
 done
 echo "  "
 echo " PYTHON PROCESSING COMPLETE."
+
+# ----
+cd ${OUTPATH}
+mkdir $YEAR$MONTH$DAY
+mkdir $YEAR$MONTH$DAY/Hs
+mkdir $YEAR$MONTH$DAY/WS10
+mv *Hs* $YEAR$MONTH$DAY/Hs/
+mv *WS10* $YEAR$MONTH$DAY/WS10/
 

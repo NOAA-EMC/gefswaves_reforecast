@@ -56,6 +56,53 @@ sl=13
 matplotlib.rcParams.update({'font.size': sl}); plt.rc('font', size=sl) 
 matplotlib.rc('xtick', labelsize=sl); matplotlib.rc('ytick', labelsize=sl); matplotlib.rcParams.update({'font.size': sl})
 
+# READ DATA
+def read_data(wlist,station,ltime1,ltime2,lstw):
+
+    f=nc.Dataset(wlist[0])    
+    st = np.where(f.variables['buoyID'][:]==station)[0][0]
+    ensm = f.variables['ensemble_member'][:]
+    latm = f.variables['lat'][0,:]; lonm = f.variables['lon'][0,:]
+    indlat = int(np.floor(len(latm)/2)); indlon = int(np.floor(len(lonm)/2))
+    auxt = np.array(f.variables['time'][:])
+    # week 2 forecast
+    axt = np.array(auxt-auxt.min())/3600.
+    indt = np.where( (axt>=ltime1*24) & (axt<=ltime2*24) )[0]
+    f.close(); del f, auxt, axt
+
+    # read data
+    for i in range(0,lstw):
+
+        f=nc.Dataset(wlist[i])    
+
+        if i==0:
+            ctime=np.array([f.variables['time'][0]]).astype('double')
+            u10_ndbc = np.array([f.variables['u10_ndbc'][st,indt]])
+            hs_ndbc = np.array([f.variables['hs_ndbc'][st,indt]])
+            u10_gdas = np.array([f.variables['u10_gdas'][st,indt,:,:]])
+            hs_gdas = np.array([f.variables['hs_gdas'][st,indt,:,:]])
+            u10_gefs_hindcast = np.array([f.variables['u10_gefs_hindcast'][st,indt,:,:,:]])
+            hs_gefs_hindcast = np.array([f.variables['hs_gefs_hindcast'][st,indt,:,:,:]])
+            u10_gefs_forecast = np.array([f.variables['u10_gefs_forecast'][st,indt,:,:,:]])
+            hs_gefs_forecast = np.array([f.variables['hs_gefs_forecast'][st,indt,:,:,:]])
+        else:
+            ctime = np.append(ctime, np.array([f.variables['time'][0]]).astype('double'))
+            u10_ndbc = np.append(u10_ndbc,np.array([f.variables['u10_ndbc'][st,indt]]),axis=0)
+            hs_ndbc = np.append(hs_ndbc,np.array([f.variables['hs_ndbc'][st,indt]]),axis=0)
+            u10_gdas = np.append(u10_gdas,np.array([f.variables['u10_gdas'][st,indt,:,:]]),axis=0)
+            hs_gdas = np.append(hs_gdas,np.array([f.variables['hs_gdas'][st,indt,:,:]]),axis=0)
+            u10_gefs_hindcast = np.append(u10_gefs_hindcast,np.array([f.variables['u10_gefs_hindcast'][st,indt,:,:,:]]),axis=0)
+            hs_gefs_hindcast = np.append(hs_gefs_hindcast,np.array([f.variables['hs_gefs_hindcast'][st,indt,:,:,:]]),axis=0)
+            u10_gefs_forecast = np.append(u10_gefs_forecast,np.array([f.variables['u10_gefs_forecast'][st,indt,:,:,:]]),axis=0)
+            hs_gefs_forecast = np.append(hs_gefs_forecast,np.array([f.variables['hs_gefs_forecast'][st,indt,:,:,:]]),axis=0)
+
+        f.close(); del f
+        print(" read file "+repr(i)+" of "+repr(lstw-1))
+
+    cdate = [datetime.utcfromtimestamp(ts) for ts in ctime]
+
+    return cdate,ctime,st,ensm,latm,lonm,indlat,indlon,u10_ndbc,hs_ndbc,u10_gdas,hs_gdas,u10_gefs_hindcast,hs_gefs_hindcast,u10_gefs_forecast,hs_gefs_forecast,indt
+
 def categorical_eval(forecasted,obs,threshold):
 
     ind = np.where((forecasted>-999.)&(obs>-999.))
@@ -256,7 +303,7 @@ if __name__ == "__main__":
     ltime1=int(sys.argv[2])
     # ltime2=14
     ltime2=int(sys.argv[3])
-    # opath="/home/ricardo/cimas/analysis/3assessments/fuzzy_verification/output"
+    # opath="/home/ricardo/cimas/analysis/4postproc/output"
     opath=str(sys.argv[4])
 
     # file tag to same output fils
@@ -279,51 +326,10 @@ if __name__ == "__main__":
     # list of netcdf files generated with buildfuzzydataset.py (GEFS, GDAS, and NDBC buoy)
     # ls -d $PWD/*.nc > list.txt &
     wlist=np.atleast_1d(np.loadtxt('list.txt',dtype=str)) 
+    lstw=int(len(wlist)); lplev=int(len(plevels)-1)
 
-    f=nc.Dataset(wlist[0])    
-    st = np.where(f.variables['buoyID'][:]==station)[0][0]
-    ensm = f.variables['ensemble_member'][:]
-    latm = f.variables['lat'][0,:]; lonm = f.variables['lon'][0,:]
-    indlat = int(np.floor(len(latm)/2)); indlon = int(np.floor(len(lonm)/2))
-    auxt = np.array(f.variables['time'][:])
-    # week 2 forecast
-    axt = np.array(auxt-auxt.min())/3600.
-    indt = np.where( (axt>=ltime1*24) & (axt<=ltime2*24) )[0]
-    f.close(); del f, auxt, axt
+    cdate,ctime,u10_ndbc,hs_ndbc,u10_gdas,hs_gdas,u10_gefs_hindcast,hs_gefs_forecast = read_data(wlist,station)
 
-    wlist=np.atleast_1d(np.loadtxt('list.txt',dtype=str))
-    lstw=int(len(wlist))
-    lplev=int(len(plevels)-1)
-    # read data
-    for i in range(0,lstw):
-
-        f=nc.Dataset(wlist[i])    
-
-        if i==0:
-            ctime=np.array([f.variables['time'][0]]).astype('double')
-            u10_ndbc = np.array([f.variables['u10_ndbc'][st,indt]])
-            hs_ndbc = np.array([f.variables['hs_ndbc'][st,indt]])
-            u10_gdas = np.array([f.variables['u10_gdas'][st,indt,:,:]])
-            hs_gdas = np.array([f.variables['hs_gdas'][st,indt,:,:]])
-            u10_gefs_hindcast = np.array([f.variables['u10_gefs_hindcast'][st,indt,:,:,:]])
-            hs_gefs_hindcast = np.array([f.variables['hs_gefs_hindcast'][st,indt,:,:,:]])
-            u10_gefs_forecast = np.array([f.variables['u10_gefs_forecast'][st,indt,:,:,:]])
-            hs_gefs_forecast = np.array([f.variables['hs_gefs_forecast'][st,indt,:,:,:]])
-        else:
-            ctime = np.append(ctime, np.array([f.variables['time'][0]]).astype('double'))
-            u10_ndbc = np.append(u10_ndbc,np.array([f.variables['u10_ndbc'][st,indt]]),axis=0)
-            hs_ndbc = np.append(hs_ndbc,np.array([f.variables['hs_ndbc'][st,indt]]),axis=0)
-            u10_gdas = np.append(u10_gdas,np.array([f.variables['u10_gdas'][st,indt,:,:]]),axis=0)
-            hs_gdas = np.append(hs_gdas,np.array([f.variables['hs_gdas'][st,indt,:,:]]),axis=0)
-            u10_gefs_hindcast = np.append(u10_gefs_hindcast,np.array([f.variables['u10_gefs_hindcast'][st,indt,:,:,:]]),axis=0)
-            hs_gefs_hindcast = np.append(hs_gefs_hindcast,np.array([f.variables['hs_gefs_hindcast'][st,indt,:,:,:]]),axis=0)
-            u10_gefs_forecast = np.append(u10_gefs_forecast,np.array([f.variables['u10_gefs_forecast'][st,indt,:,:,:]]),axis=0)
-            hs_gefs_forecast = np.append(hs_gefs_forecast,np.array([f.variables['hs_gefs_forecast'][st,indt,:,:,:]]),axis=0)
-
-        f.close(); del f
-        print(" read file "+repr(i)+" of "+repr(lstw-1))
-
-    cdate = [datetime.utcfromtimestamp(ts) for ts in ctime]
     # Preserve original data and Reshape
     ru10_ndbc = np.array(u10_ndbc.reshape(lstw*len(indt)))
     rhs_ndbc = np.array(hs_ndbc.reshape(lstw*len(indt)))
@@ -336,6 +342,7 @@ if __name__ == "__main__":
 
     # ===== Mimic the operational probability maps methodology ===== 
 
+    # -- Selec nmax --
     u10_ndbc_t = np.mean(u10_ndbc,axis=1)
     for i in range(0,lstw):
         ind = np.where(u10_ndbc[i,:]>-999.)
@@ -444,6 +451,10 @@ if __name__ == "__main__":
             fmod_result_hs = np.array([fmod])
         else:
             fmod_result_hs = np.append(fmod_result_hs,np.array([fmod]),axis=0)
+
+
+
+
 
     #  =====  =====  ===== 
 
