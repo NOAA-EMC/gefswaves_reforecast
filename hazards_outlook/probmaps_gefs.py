@@ -86,7 +86,7 @@ fcdate=str(fcycle[0:8]); fchour=str(fcycle[8:10])
 # Forecast Lead Time (Day) and intervall
 ltime1=int(sys.argv[3])
 ltime2=int(sys.argv[4])
-# forecast variable: WS10, Hs, Tp
+# forecast variable: WS10, Hs
 fvarname=str(sys.argv[5])
 
 # Fixed configuration variables, read yaml file -----------
@@ -115,8 +115,10 @@ gft=wconfig['gft']
 pctls=np.array(wconfig['pctls']).astype('int')
 # Probability levels
 plevels = np.array(wconfig['plevels']).astype('float')
+hplevels = np.array(wconfig['hplevels']).astype('float')
 # Colors for the probability maps
 pcolors = np.array(wconfig['pcolors']).astype('str')
+hpcolors = np.array(wconfig['hpcolors']).astype('str')
 
 # Path of GEFSv12 grib2 files
 gefspath=wconfig['gefspath']
@@ -297,15 +299,31 @@ print(" 3. Space-Time Cells and Probabilities ... OK"); print(" ")
 
 # PLOTS
 print(" 4. Probability Maps ...")
+
 # Probability levels and labels for the plots
 clabels=[];clevels=[]
-for i in range(0,np.size(plevels)-1):
-    clabels=np.append(clabels,">"+str(int(plevels[i]*100)).zfill(2)+"%")
-    clevels=np.append(clevels,(plevels[i]+plevels[i+1])/2)
+for j in range(0,np.size(plevels)-1):
+    clabels=np.append(clabels,">"+str(int(plevels[j]*100)).zfill(2)+"%")
+    clevels=np.append(clevels,(plevels[j]+plevels[j+1])/2)
 
 cmap = ListedColormap(pcolors)
 
 for i in range(0,qlev.shape[0]):
+
+    # Extra percentage level associated with the most extreme case
+    if i == int(qlev.shape[0]-1):
+
+        plevels = hplevels
+        pcolors = hpcolors
+
+        clabels=[];clevels=[]
+        for j in range(0,np.size(plevels)-1):
+            clabels=np.append(clabels,">"+str(int(plevels[j]*100))+"%")
+            clevels=np.append(clevels,(plevels[j]+plevels[j+1])/2)
+
+        cmap = ListedColormap(pcolors)
+
+    # Figure
     plt.figure(figsize=(9,5.5))
     ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
     ax.set_extent([slonmin+spws,slonmax-spws,slatmin+spws,slatmax-spws], crs=ccrs.PlateCarree())

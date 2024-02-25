@@ -72,6 +72,7 @@ OUTPATH=$(echo "$outpath_line" | awk -F': ' '{print $2}')
 YEAR=`date +%Y`
 MONTH=`date +%m`
 DAY=`date +%d`
+
 # pa=2 #  days into the past. pa=1 runs using yesterday's cycle
 # YEAR=`date --date=-$pa' day' '+%Y'`
 # MONTH=`date --date=-$pa' day' '+%m'`

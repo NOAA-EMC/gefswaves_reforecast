@@ -61,6 +61,14 @@ plevels:
 - 0.65
 - 0.8
 - 1.0
+# Probability thresholds for the top intensity level (Hurricane Force)
+hplevels:
+- 0.05
+- 0.15
+- 0.5
+- 0.65
+- 0.8
+- 1.0
 
 # Visualization: 
 # gaussian filter spatial plot smoothing. It does not concern the prob computation, only the plots.
@@ -70,7 +78,14 @@ vtickd_wnd: 4
 vtickd_hs: 1
 # colors of the probability map intervals (plevels)
 pcolors:
-- lightblue
+- lightskyblue
+- navy
+- darkorange
+- firebrick
+# color of the probability map intervals for the top intensity level (Hurricane Force)
+hpcolors:
+- aquamarine
+- deepskyblue
 - navy
 - darkorange
 - firebrick
