@@ -6,7 +6,8 @@ probmaps_gefs.py
 
 VERSION AND LAST UPDATE:
  v1.0  06/09/2023
- v2.0  01/06/2024
+ v1.1  01/06/2024
+ v1.2  02/24/2024
 
 PURPOSE:
  This program makes the probability maps based on the NOAA Global Ensemble
@@ -48,6 +49,8 @@ AUTHOR and DATE:
  01/06/2024: Ricardo M. Campos, kmz format added and variable Tp removed. The date
   has been removed from the output file name (figure) so it can be replaced automatically
   aften each new run.
+ 02/24/2024: Ricardo M. Campos, include 5% prob level for hurricane force 
+  winds and waves, in green.
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
