@@ -13,7 +13,7 @@ ensemble member set, which is then combined and reshaped into a single large arr
 cumulative distribution function. A predefined percentile is used to subsample the extreme tail of the
 distribution, from which probabilities associated with given thresholds are computed. Considering the Beaufort scale 
 and Saffir-Simpson Hurricane scale, the following levels have been defined: 
-wind speeds of 34, 50, and 64 knots; significant wave heights of 4, 6, 9, and 14 meters
+wind speeds of 34, 48, and 64 knots; significant wave heights of 4, 6, 9, and 14 meters
 The probability maps have been generated on a daily basis since June, 2023, and the program has been run for
 historical conditions related to significant case studies to validate the method across different meteorological events.
 
