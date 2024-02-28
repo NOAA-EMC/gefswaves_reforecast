@@ -78,7 +78,7 @@ vtickd_wnd: 4
 vtickd_hs: 1
 # colors of the probability map intervals (plevels)
 pcolors:
-- lightskyblue
+- deepskyblue
 - navy
 - darkorange
 - firebrick
