@@ -2,68 +2,17 @@
 # -*- coding: utf-8 -*-
 
 """
-probmaps_gefs.py
+probmaps_gefs_refcst.py
 
-VERSION AND LAST UPDATE:
- v1.0  06/09/2023
- v1.1  01/06/2024
- v1.2  02/24/2024
-
-PURPOSE:
- This program makes the probability maps based on the NOAA Global Ensemble
-  Forecast System (GEFS), marine forecast. It requires the grib2 files to
-  have been previously downloaded (see download_GEFSwaves.sh)
- The global hazards outlook (probability map) shows the probability of 
-  certain variable (wind speed, significant wave height, and peak period)
-  to have at least one value above certain pre-defined level within the given
-  time range.
- For example, selecting the week2 time range (from day 7 to day 14), it
-  calculates the probabilities of encontering at least one instant above
-  qlev (defined in probmaps_gefs.yaml) during this week (for each grid point).
-
-USAGE:
- The information is passed to the script through 5 input arguments:
-  1) .yaml configuration file probmaps_gefs.yaml;
-  2) forecast cycle (YYYYMMDDHH) that will be used to compute the probabilities;
-  3) initial day to define the time interval to calculate the statistics;
-  4) final day to define the time interval to calculate the statistics;
-  5) variable (select only one) to be processed: WS10 or Hs;
- The configuration probmaps_gefs.yaml contains the fixed information.
- This script must be run for each variable (WS10, Hs) separately.
- See the probmaps_gefs.yaml for more specific information and how to calibrate
-  the probabilities and customize the plots.
-
- Example (from linux terminal command line):
-  python3 probmaps_gefs.py probmaps_gefs.yaml 2023060900 7 14 Hs
-  nohup python3 probmaps_gefs.py probmaps_gefs.yaml 2023060900 7 14 Hs >> nohup_probmaps_gefs.out 2>&1 &
-
-OUTPUT:
- png and kmz figures (probability maps) saved in the outpath directory informed in
- the configuration file probmaps_gefs.yaml
-
-DEPENDENCIES:
- See the imports below.
-
-AUTHOR and DATE:
- 06/09/2023: Ricardo M. Campos, first version.
- 01/06/2024: Ricardo M. Campos, kmz format added and variable Tp removed. The date
-  has been removed from the output file name (figure) so it can be replaced automatically
-  aften each new run.
- 02/24/2024: Ricardo M. Campos, include 5% prob level for hurricane force 
-  winds and waves, in green.
-
-PERSON OF CONTACT:
- Ricardo M Campos: ricardo.campos@noaa.gov
+Retrospective runs of probmaps_gefs.py
 
 """
 
 # Pay attention to the pre-requisites and libraries
 import matplotlib
 matplotlib.use('Agg')
-import pygrib
 import xarray as xr
 import matplotlib.pyplot as plt
-import zipfile
 import yaml
 from matplotlib.colors import ListedColormap
 from scipy.ndimage.filters import gaussian_filter
@@ -184,36 +133,23 @@ auxltime[auxltime>384]=384; auxltime[auxltime<0]=0
 
 # READ WW3 Ensemble Forecast files. Appending forecast days (time intervall).
 c=0
-for t in range(0,auxltime.shape[0]):
-    for enm in range(0,nenm):
+for enm in range(0,nenm):
 
-        if enm==0:
-            fname=gefspath+"gefs."+fcdate+"/"+fchour+"/wave/gridded/gefs.wave.t"+fchour+"z.c"+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
-        else:
-            fname=gefspath+"gefs."+fcdate+"/"+fchour+"/wave/gridded/gefs.wave.t"+fchour+"z.p"+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
+    fname=gefspath+"gefs.wave."+fcdate+"."+str(enm).zfill(2)+".global.0p25.nc"
+    ds = xr.open_dataset(fname)
 
-        if c==0:
-            ds = xr.open_dataset(fname, engine='cfgrib')
-            wtime = np.atleast_1d(np.array(ds.time.values))
-            lat = np.array(ds.latitude.values); lat = np.sort(lat); lon = np.array(ds.longitude.values)
-            fmod=np.zeros((auxltime.shape[0],nenm,lat.shape[0],lon.shape[0]),'f')*np.nan
-            ds.close(); del ds
+    if c==0:
+        wtime = pd.to_datetime(np.atleast_1d(np.array(ds.time.values)))
+        hours_since_start = np.array((wtime - wtime[0]).total_seconds() / 3600).round(2)
+        indi = np.where(hours_since_start==float(auxltime[0]))[0][0]
+        indf = np.where(hours_since_start==float(auxltime[-1]))[0][0] + 1
+        lat = ds['latitude'].values[:]; lat = np.sort(lat); lon = ds['longitude'].values[:]
+        fmod = np.zeros((auxltime.shape[0],nenm,lat.shape[0],lon.shape[0]),'f')*np.nan
 
-        # opening and reading with pygrib (faster than xarray cfgrib)
-        grbs = pygrib.open(fname); glist=list(grbs.select())
-        ind=np.nan
-        for i in range(0,len(glist)):
-            if mvar in str(glist[i]):
-                ind=int(i)
-        if ind>=0:
-            grb = grbs.select()[ind]
-            fmod[t,enm,:,:]=np.flip(grb.values,axis=0)
-        else:
-            sys.exit(" Enviromental variable "+mvar+" not found in the grib2 file "+fname)
-
-        c=c+1; del ind
-
-    print(repr(t))
+    # opening and reading with pygrib (faster than xarray cfgrib)
+    fmod[:,enm,:,:] = np.array(ds[mvar].values[:,:,:][indi:indf,:,:])
+    ds.close(); del ds
+    print(repr(enm)); c=c+1
 
 # Quick simple quality control
 fmod[fmod>=qqvmax]=np.nan; fmod[fmod<0.]=np.nan
@@ -260,14 +196,11 @@ for i in range(0,pctls.shape[0]):
     cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
     plt.axes(ax); plt.tight_layout()
     plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
-    figname = outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
+    figname = outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_"+fcdate
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
     plt.close('all')
-    # convert to kmz
-    with zipfile.ZipFile(figname+".kmz", "w") as kmz:
-        kmz.write(figname+".png")
 
     del ax, figname
     print(" 2. Initial Plots. Percentile "+str(pctls[i]).zfill(2)+" ok.")
@@ -352,15 +285,11 @@ for i in range(0,qlev.shape[0]):
 
     plt.axes(ax); plt.tight_layout()
     plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
-    figname = outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
+    figname = outpath+"ProbMap_"+fvarname+"_"+str(round(qlev[i])).zfill(1)+"_"+fcdate
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
             orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
     plt.close('all')
-
-    # convert to kmz
-    with zipfile.ZipFile(figname+".kmz", "w") as kmz:
-        kmz.write(figname+".png")
 
     del ax, figname
     print("   Plot ... qlev "+repr(qlev[i]))

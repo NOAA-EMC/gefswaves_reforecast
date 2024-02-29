@@ -1,22 +1,22 @@
-# Configuration file for probmaps_gefs.sh and probmaps_gefs.py
+# Configuration file for probmaps_gefs.sh and probmaps_gefs_refcst.py
 
-# GEFv12 data path, where the gefs.YYYYMMDD/00/wave/gridded/*.grib2 field outputs are located:
-gefspath: /media/ricardo/ssdrmc/analysis/products/probmaps/data/nccf/com/gens/prod
+# GEFv12 data path where field outputs are located:
+gefspath: /work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf
 
 # Python script path and file:
-pyscript: /media/ricardo/ssdrmc/analysis/products/probmaps/probmaps_gefs.py
+pyscript: /work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/version1p2/probmaps_gefs_refcst.py
 
 # Output path, where the figures will be saved
-outpath: /media/ricardo/ssdrmc/analysis/products/probmaps/optest
+outpath: /work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/version1p2/maps
 
 # Text string for identification
 ftag: GEFSv12
 
 # Variable names
 mvars: "WS10 Hs"
-# Variable names in the grib2 file (opening with pygrib)
-mvar_wnd: "Wind speed"
-mvar_hs: "Significant height of combined wind waves and swell"
+# Variable names in the netcdf file
+mvar_wnd: "WIND_surface"
+mvar_hs: "HTSGW_surface"
 
 # Domain for the final plot
 lonmin: 140
