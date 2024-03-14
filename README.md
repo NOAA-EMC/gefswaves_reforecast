@@ -2,16 +2,15 @@
 
 AWS data storage noaa-nws-gefswaves-reforecast-pds
 
-This is a project in cooperation with the National Weather Service’s Ocean Prediction Center and Environmental Modeling Center, along with NOAA’s Atlantic Oceanographic and Meteorological Laboratory (AOML) and the University of Miami’s University of Miami Cooperative Institute for Marine and Atmospheric Studies (CIMAS).
+This is a project in cooperation with the National Weather Service’s Ocean Prediction Center and Environmental Modeling Center, along with NOAA’s Atlantic Oceanographic and Meteorological Laboratory (AOML) and the University of Miami’s Cooperative Institute for Marine and Atmospheric Studies (CIMAS).
 
 # Description:
 
 This repository is designed to help users to download and process the 20-year global wave reforecast generated 
  by WAVEWATCH III model (https://github.com/NOAA-EMC/WW3) forced by GEFSv12 winds (https://noaa-gefs-retrospective.s3.amazonaws.com/index.html).
 The wave ensemble has been run with one cycle per day (at 03Z), spatial resolution of 0.25°X0.25° and temporal resolution of 3 hours. 
-There are five ensemble members (control plus four perturbed members) and, once a week (Wednesdays),
- the ensemble is expanded to eleven members.
-The forecast range is 16 days and, once a week (Wednesdays), it extends to 35 days.
+The reforecast ensemble comprises 5 members with one cycle per day, providing a forecast range of 16 days. 
+Once a week (on Wednesdays), it extends to 35 days with 11 members.
 More information about the wave modeling, wave grids and calibration can be found in the WAVEWATCH III regtest ww3_ufs1.3:
 https://github.com/NOAA-EMC/WW3/tree/develop/regtests/ww3_ufs1.3
 The 20 years of reforecast results have been analyzed and quality-controlled. Three output types are available:
@@ -19,6 +18,9 @@ The 20 years of reforecast results have been analyzed and quality-controlled. Th
 2) Point output tables, in netcdf format, containing time-series of significant wave height, period and direction, for 658 points (latitude/longitude informed) at the positions of wave buoys;
 3) For the same positions, spectral outputs are available, in netcdf format, containing the full spectra (2D directional spectrum).
 Each file refers to one forecast cycle with date (year,month,day) written in the file name.
+
+Details on the development and validation of this product can be found in the publication:
+Campos, R.M., Abdolali, A., Alves, J.H., Masarik, M., Meixner, J., Banihashemi, S., Mehra, A., Figurskey, D., Sienkiewicz, J., Lumpkin, R., 2024. Development and Validation of NOAA’s 20-year global wave ensemble reforecast. Weather & Forecasting. Under review.
 
 # Update Frequency:
 
