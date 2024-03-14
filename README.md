@@ -19,7 +19,7 @@ The 20 years of reforecast results have been analyzed and quality-controlled. Th
 3) For the same positions, spectral outputs are available, in netcdf format, containing the full spectra (2D directional spectrum).
 Each file refers to one forecast cycle with date (year,month,day) written in the file name.
 
-Details on the development and validation of this product can be found in the publication:
+Details on the development and validation of this product can be found in the publication: \
 Campos, R.M., Abdolali, A., Alves, J.H., Masarik, M., Meixner, J., Banihashemi, S., Mehra, A., Figurskey, D., Sienkiewicz, J., Lumpkin, R., 2024. Development and Validation of NOAA’s 20-year global wave ensemble reforecast. Weather & Forecasting. Under review.
 
 # Update Frequency:
