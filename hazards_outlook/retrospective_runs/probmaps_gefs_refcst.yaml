@@ -3,8 +3,11 @@
 # GEFv12 data path where field outputs are located:
 gefspath: /work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf
 
-# Python script path and file:
-pyscript: /work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/version1p2/probmaps_gefs_refcst.py
+# Python script (prob maps) path and file:
+pyscript: /work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/probmaps_gefs_refcst.py
+
+# Python script (hindcast reference) path and file:
+pyhindcst: /work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/hindcast_reference_archives.py
 
 # Output path, where the figures will be saved
 outpath: /work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/version1p2/maps
