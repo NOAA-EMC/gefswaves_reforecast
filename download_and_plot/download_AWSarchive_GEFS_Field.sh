@@ -57,13 +57,13 @@ for h in $fleads;do
     TAM=0
     TRIES=1
 
-    while [ $TAM -lt 12000000 ] && [ $TRIES -le 130 ]; do
+    while [ $TAM -lt 1200000 ] && [ $TRIES -le 130 ]; do
       # sleep 5 minutes between attemps
       if [ ${TRIES} -gt 5 ]; then
         sleep 30
       fi
 
-      if [ ${TAM} -lt 12000000 ]; then
+      if [ ${TAM} -lt 1200000 ]; then
           # Main line, download
           if [ ${e} == "00" ]; then
             wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ${SERVER}gefs.${CTIME}/00/wave/gridded/gefs.wave.t00z.c${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 -O $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 2>&1

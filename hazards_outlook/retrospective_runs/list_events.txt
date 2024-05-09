@@ -1,0 +1,53 @@
+# OneApus container loss. Hurricane-Force low, Pacific. [?]
+20201120 OneApus_closs
+20201122 OneApus_closs
+20201124 OneApus_closs
+# Maersk Essen container loss. Hurricane-Force Extratropical, Pacific. [True Positive]
+20210102 Maersk_closs
+20210103 Maersk_closs
+20210104 Maersk_closs
+20210105 Maersk_closs
+# Madrid Bridge container loss. Hurricane-Force Extratropical, Atlantic. [?]
+20211229 MadridBridge_closs
+20211230 MadridBridge_closs
+20211231 MadridBridge_closs
+# Villa de Pitanxo sink. 20+ foot seas near Newfoundland, Atlantic. [?]
+20220205 VillaPitanxo_sink
+20220206 VillaPitanxo_sink
+20220207 VillaPitanxo_sink
+20220208 VillaPitanxo_sink
+# Typhoon Merbok, Pacific. [?]
+20220906 Typhoon_Merbok
+20220907 Typhoon_Merbok
+20220908 Typhoon_Merbok
+20220909 Typhoon_Merbok
+# Hurricane Don (C1). [False Negative]
+20230714 Hurricane_Don
+20230715 Hurricane_Don
+20230716 Hurricane_Don
+# Hurricane Franklin (C4). [True Positive]
+20230821 Hurricane_Franklin
+20230822 Hurricane_Franklin
+# Hurricane Idalia (C4). [False Negative]
+20230823 Hurricane_Idalia
+# Hurricane Lee (C4). [True Positive]
+20230902 Hurricane_Lee
+20230904 Hurricane_Lee
+20230905 Hurricane_Lee
+# Non-Hurricane towards the Azores. [False Positive]
+20230926 FalseHurricane_Azores
+# Hurricane Otis (C5). [False Negative]
+20231015 Hurricane_Otis
+20231016 Hurricane_Otis
+# Storm Ciarán. [True Positive]
+20231025 Storm_Ciaran
+20231026 Storm_Ciaran
+# Hurricane-Force Extratropical, Pacific. [True Positive]
+20240126 HForce_Pacific1
+# Hurricane-Force Extratropical, Atlantic. [?]
+20240209 HForce_Atlantic1
+20240213 HForce_Atlantic1
+# Hurricane-Force Extratropical, Pacific. [True Positive]
+20240311 HForce_Pacific2
+# Hurricane-Force Extratropical, Pacific. [True Positive]
+20240320 HForce_Pacific3

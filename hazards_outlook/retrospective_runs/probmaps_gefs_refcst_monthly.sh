@@ -6,7 +6,7 @@
 #SBATCH -A marine-cpu
 #SBATCH -p orion
 
-# This job run the code probmaps_gefs_refcst.sh on Orion
+# This job run the code probmaps_gefs_refcst_monthly.sh on Orion
 # Each job submission runs one month of consecutive forecast cycles
 #
 # DIRJOUT="/work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/version1p2/jobs"

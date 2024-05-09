@@ -4,7 +4,43 @@
 """
 probmaps_gefs_refcst.py
 
-Retrospective runs of probmaps_gefs.py
+VERSION AND LAST UPDATE:
+ v1.0  05/09/2024
+
+PURPOSE:
+ Retrospective runs of probmaps_gefs.py, generating probability maps for
+  GEFSv12 ensemble forecast archives.
+
+USAGE:
+ This code mimics the main program probmaps_gefs.py used operationally,
+  with the addition of an input argument with a string associaed with the
+  name of the event being run.
+ The information is passed to the script through 6 input arguments and 
+  one configuration file (probmaps_gefs.yaml).
+ There are 4 input arguments:
+  1) path and name of .yaml descriptive file (probmaps_gefs_refcst.yaml);
+  2) forecast cycle (YYYYMMDDHH) that will be used to compute the probabilities;
+  3) initial day to define the time interval to calculate the statistics;
+  4) final day to define the time interval to calculate the statistics;
+  5) variable (select only one) to be processed: U10, Hs;
+  6) name of the event, which will be included in the output name of the figure;
+
+ Make sure the information and paths in probmaps_gefs_refcst.yaml are correct.
+ This code is run inside probmaps_gefs_refcst_fromList.sh which reads a list
+  of important events to be re-analyzed list_events.txt
+
+OUTPUT:
+ .png figure (ProbMap_*.png) saved in the outpath directory 
+  informed in the configuration file probmaps_gefs_refcst.yaml
+
+DEPENDENCIES:
+ See the imports below.
+
+AUTHOR and DATE:
+ 05/09/2024: Ricardo M. Campos, first version.
+
+PERSON OF CONTACT:
+ Ricardo M Campos: ricardo.campos@noaa.gov
 
 """
 
@@ -12,6 +48,7 @@ Retrospective runs of probmaps_gefs.py
 import matplotlib
 matplotlib.use('Agg')
 import xarray as xr
+import netCDF4 as nc
 import matplotlib.pyplot as plt
 import yaml
 from matplotlib.colors import ListedColormap
@@ -40,6 +77,8 @@ ltime1=int(sys.argv[3])
 ltime2=int(sys.argv[4])
 # forecast variable: WS10, Hs
 fvarname=str(sys.argv[5])
+if len(sys.argv) >= 5:
+    name_event=str(sys.argv[6])
 
 # Fixed configuration variables, read yaml file -----------
 print(" "); print(" Reading yaml configuration file ...")
@@ -136,19 +175,20 @@ c=0
 for enm in range(0,nenm):
 
     fname=gefspath+"gefs.wave."+fcdate+"."+str(enm).zfill(2)+".global.0p25.nc"
-    ds = xr.open_dataset(fname)
-
     if c==0:
+        ds = xr.open_dataset(fname)
         wtime = pd.to_datetime(np.atleast_1d(np.array(ds.time.values)))
         hours_since_start = np.array((wtime - wtime[0]).total_seconds() / 3600).round(2)
         indi = np.where(hours_since_start==float(auxltime[0]))[0][0]
         indf = np.where(hours_since_start==float(auxltime[-1]))[0][0] + 1
         lat = ds['latitude'].values[:]; lat = np.sort(lat); lon = ds['longitude'].values[:]
         fmod = np.zeros((auxltime.shape[0],nenm,lat.shape[0],lon.shape[0]),'f')*np.nan
+        ds.close(); del ds
 
+    f=nc.Dataset(fname)
     # opening and reading with pygrib (faster than xarray cfgrib)
-    fmod[:,enm,:,:] = np.array(ds[mvar].values[:,:,:][indi:indf,:,:])
-    ds.close(); del ds
+    fmod[:,enm,:,:] = np.array(f.variables[mvar][:,:,:][indi:indf,:,:])
+    f.close(); del f    
     print(repr(enm)); c=c+1
 
 # Quick simple quality control
@@ -169,43 +209,7 @@ print(" 1. Forecast Data ... OK"); print(" ")
 
 fmodo=np.array(fmod.reshape(auxltime.shape[0]*nenm,lat.shape[0],lon.shape[0]))
 
-print(" 2. Initial Plots ...")
-wlevels=np.linspace(0,np.nanpercentile(fmod,99.99),101)
-
-# Percentiles
-for i in range(0,pctls.shape[0]):
-    plt.figure(figsize=(9,5.5))
-    ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
-    ax.set_extent([slonmin+spws,slonmax-spws,slatmin+spws,slatmax-spws], crs=ccrs.PlateCarree())
-    # ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
-    gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
-    gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
-    cs=ax.contourf(lon,lat,np.nanpercentile(fmodo,pctls[i],axis=0),levels=wlevels,alpha=0.7,cmap='jet',zorder=1,extend="max",transform = ccrs.PlateCarree())
-    ax.add_feature(cartopy.feature.OCEAN,facecolor=("white"))
-    ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
-    ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
-    ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
-    title = "Percentile"+str(pctls[i]).zfill(2)+" "+fvarname+" ("+funits+"), Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
-    title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
-    title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
-    ax.set_title(title); del title
-    plt.tight_layout()
-    ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.06, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
-    cbar = plt.colorbar(cs,cax=cax, orientation='horizontal', format='%g')
-    labels = np.arange(0, wlevels.max(),vtickd).astype('int'); ticks = np.arange(0, wlevels.max(),vtickd).astype('int')
-    cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
-    plt.axes(ax); plt.tight_layout()
-    plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
-    figname = outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_"+fcdate
-    plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
-        orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
-
-    plt.close('all')
-
-    del ax, figname
-    print(" 2. Initial Plots. Percentile "+str(pctls[i]).zfill(2)+" ok.")
-
-print(" "); print(" 3. Space-Time Cells and Probabilities ...")
+print(" 2. Space-Time Cells and Probabilities ...")
 # n-max expansion and reshape
 fmod=np.sort(fmod,axis=0)
 fmod=np.copy(fmod[-nmax::,:,:,:])
@@ -231,10 +235,10 @@ for i in range(0,qlev.shape[0]):
 
                     del aux
 
-print(" 3. Space-Time Cells and Probabilities ... OK"); print(" ")
+print(" 2. Space-Time Cells and Probabilities ... OK"); print(" ")
 
 # PLOTS
-print(" 4. Probability Maps ...")
+print(" 3. Probability Maps ...")
 
 # Probability levels and labels for the plots
 clabels=[];clevels=[]
@@ -285,8 +289,8 @@ for i in range(0,qlev.shape[0]):
 
     plt.axes(ax); plt.tight_layout()
     plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
-    figname = outpath+"ProbMap_"+fvarname+"_"+str(round(qlev[i])).zfill(1)+"_"+fcdate
-    plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
+    figname = outpath+"ProbMap_"+fvarname+"_"+str(round(qlev[i])).zfill(1)+"_"+fcdate+"_"+name_event
+    plt.savefig(figname+".png", dpi=130, facecolor='w', edgecolor='w',
             orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
     plt.close('all')
@@ -294,5 +298,5 @@ for i in range(0,qlev.shape[0]):
     del ax, figname
     print("   Plot ... qlev "+repr(qlev[i]))
 
-print(" 4. Probability Plots ... OK"); print(" ")
+print(" 3. Probability Plots ... OK"); print(" ")
 
