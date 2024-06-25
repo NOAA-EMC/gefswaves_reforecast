@@ -170,7 +170,7 @@ print(" "); print(" 1. Reading Forecast Data ...")
 auxltime = np.arange((ltime1-1)*24,((ltime2)*24)+1,tres)
 auxltime[auxltime>384]=384; auxltime[auxltime<0]=0
 
-# READ WW3 Ensemble Forecast files. Appending forecast days (time intervall).
+# READ WW3 Ensemble Forecast files. Appending forecast days (ensemble members).
 c=0
 for enm in range(0,nenm):
 
