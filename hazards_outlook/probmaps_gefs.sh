@@ -71,7 +71,7 @@ OUTPATH=$(echo "$outpath_line" | awk -F': ' '{print $2}')
 # Intended forecast cycle
 YEAR=`date +%Y`
 MONTH=`date +%m`
-DAY=`date +%d`
+DAY="24"
 
 # pa=2 #  days into the past. pa=1 runs using yesterday's cycle
 # YEAR=`date --date=-$pa' day' '+%Y'`
