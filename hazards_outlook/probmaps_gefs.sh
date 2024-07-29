@@ -71,7 +71,7 @@ OUTPATH=$(echo "$outpath_line" | awk -F': ' '{print $2}')
 # Intended forecast cycle
 YEAR=`date +%Y`
 MONTH=`date +%m`
-DAY="24"
+DAY=`date +%d`
 
 # pa=2 #  days into the past. pa=1 runs using yesterday's cycle
 # YEAR=`date --date=-$pa' day' '+%Y'`
@@ -84,7 +84,7 @@ HOUR="00" # first cycle 00Z
 FSIZE=0
 TRIES=1
 
-while [ $FSIZE -lt 1000000 ] && [ $TRIES -le 144 ]; do
+while [ "$FSIZE" -lt 1000000 ] && [ "$TRIES" -le 144 ]; do
 
   # wait 5 minutes until next try
   if [ ${TRIES} -gt 5 ]; then
@@ -114,7 +114,9 @@ for WW3VAR in ${MVARS[*]}; do
   # 7 14 is the time intervall (days) for week 2
   python3 ${PYSCRIPT} ${PYCYAML} $YEAR$MONTH$DAY$HOUR 7 14 ${WW3VAR}
   echo " Probability maps for ${WW3VAR} Ok." 
+
 done
+
 echo "  "
 echo " PYTHON PROCESSING COMPLETE."
 

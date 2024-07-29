@@ -114,45 +114,65 @@ for h in $fleads;do
     echo "  " >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR
     echo " ======== GEFS Forecast: $YEAR$MONTH$DAY$HOUR  $h ========" >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 
 
-    # size FSIZE and tries TRIES will control the process
-    FSIZE=0
-    TRIES=1
-    # while file has lower size than expected it does:
-    while [ $FSIZE -lt 900000 ] && [ $TRIES -le 130 ]; do
-      # sleep 5 minutes between attemps
-      if [ ${TRIES} -gt 5 ]; then
-        sleep 300
-      fi
+    if [ ${e} == 00 ]; then
+      fname=$DIRS/gefs.wave.t00z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2
+    else
+      fname=$DIRS/gefs.wave.t00z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2
+    fi
 
-      if [ ${FSIZE} -lt 900000 ]; then
-          echo "  " >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR
-          echo " attempt number: $TRIES" >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR
-          echo "  " >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR
-          # main line where get_inv.pl and get_grib.pl are used to fech grib2 files
-          if [ ${e} == 00 ]; then
-             $DIRS/get_inv.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIRS/get_grib.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
-             test -f $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1   
-          else
-             $DIRS/get_inv.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIRS/get_grib.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
-             test -f $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
-          fi
-          # test if downloaded file exists
-          TE=$?
-          if [ ${TE} -eq 1 ]; then
-            FSIZE=0
-          else
-            # check size of each file
+    RUN=0
+    test -f ${fname}
+    TE=$?
+    if [ ${TE} -eq 1 ]; then
+      RUN=1
+    else
+      FSIZE=$(du -sb "${fname}" | awk '{ print $1 }') >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
+      if [ ${FSIZE} -lt 800000 ]; then
+        RUN=1
+      fi
+    fi
+
+    if [ ${RUN} -eq 1 ]; then
+      FSIZE=0
+      TRIES=1
+      # while file has lower size than expected it does:
+      while [ "${FSIZE}" -lt 800000 ] && [ "${TRIES}" -le 130 ]; do
+        # sleep 5 minutes between attemps
+        if [ ${TRIES} -gt 5 ]; then
+          sleep 300
+        fi
+
+        if [ ${FSIZE} -lt 800000 ]; then
+            echo "  " >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR
+            echo " attempt number: $TRIES" >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR
+            echo "  " >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR
+            # main line where get_inv.pl and get_grib.pl are used to fech grib2 files
             if [ ${e} == 00 ]; then
-              FSIZE=`du -sb $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 | awk '{ print $1 }'` >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
+               $DIRS/get_inv.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIRS/get_grib.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
+               test -f $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1   
             else
-              FSIZE=`du -sb $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 | awk '{ print $1 }'` >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
+               $DIRS/get_inv.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIRS/get_grib.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
+               test -f $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
             fi
+            # test if downloaded file exists
+            TE=$?
+            if [ ${TE} -eq 1 ]; then
+              FSIZE=0
+            else
+              # check size of each file
+              if [ ${e} == 00 ]; then
+                FSIZE=`du -sb $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 | awk '{ print $1 }'` >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
+              else
+                FSIZE=`du -sb $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 | awk '{ print $1 }'` >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
+              fi
 
-          fi
-      fi
+            fi
+        fi
 
-      TRIES=`expr $TRIES + 1`
-    done
+        TRIES=`expr $TRIES + 1`
+      done
+    fi
+
   done
 done
 
