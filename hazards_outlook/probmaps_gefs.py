@@ -8,6 +8,8 @@ VERSION AND LAST UPDATE:
  v1.0  06/09/2023
  v1.1  01/06/2024
  v1.2  02/24/2024
+ v1.3  07/31/2024
+ v2.0  09/11/2024
 
 PURPOSE:
  This program makes the probability maps based on the NOAA Global Ensemble
@@ -34,8 +36,8 @@ USAGE:
   the probabilities and customize the plots.
 
  Example (from linux terminal command line):
-  python3 probmaps_gefs.py probmaps_gefs.yaml 2023060900 7 14 Hs
-  nohup python3 probmaps_gefs.py probmaps_gefs.yaml 2023060900 7 14 Hs >> nohup_probmaps_gefs.out 2>&1 &
+  python3 probmaps_gefs.py probmaps_gefs_internal.yaml 2023060900 7 14 Hs
+  nohup python3 probmaps_gefs.py probmaps_gefs_internal.yaml 2023060900 7 14 Hs >> nohup_probmaps_gefs.out 2>&1 &
 
 OUTPUT:
  png and kmz figures (probability maps) saved in the outpath directory informed in
@@ -51,6 +53,9 @@ AUTHOR and DATE:
   aften each new run.
  02/24/2024: Ricardo M. Campos, include 5% prob level for hurricane force 
   winds and waves, in green.
+ 07/31/2024: Ricardo M. Campos, mask up / de-emphasize the tropics between 30S to 30N.
+ 09/11/2024: Ricardo M. Campos, mask the tropics only during hurricane season. Generalize
+  the code to be working with any domain (lat/lon intervals)
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
@@ -99,6 +104,8 @@ with open(fconfig, 'r') as file:
 
 ftag=str(wconfig['ftag'])
 
+# number of ensemble members
+mode=str(wconfig['mode'])
 # number of ensemble members
 nenm=wconfig['nenm']
 # time resolution
@@ -152,7 +159,6 @@ elif fvarname.upper() == "HS":
 else:
     sys.exit(" Input variable "+fvarname+" not included in the list. Please select only one: WS10, Hs.")
 
-del wconfig
 print(" Reading yaml configuration file, OK."); print(" ")
 
 # Time range forecast intervall string, for the plots
@@ -273,6 +279,7 @@ for i in range(0,pctls.shape[0]):
     print(" 2. Initial Plots. Percentile "+str(pctls[i]).zfill(2)+" ok.")
 
 print(" "); print(" 3. Space-Time Cells and Probabilities ...")
+
 # n-max expansion and reshape
 fmod=np.sort(fmod,axis=0)
 fmod=np.copy(fmod[-nmax::,:,:,:])
@@ -311,6 +318,12 @@ for j in range(0,np.size(plevels)-1):
 
 cmap = ListedColormap(pcolors)
 
+# If hurricane season, mask the tropics for external plots
+month = int(np.datetime64(wtime[0]+np.timedelta64(ltime1,'D')).astype('datetime64[M]').astype(int) % 12 + 1)
+if mode=='external' and (month>=6 and month<=10):
+    slatmin=wconfig['latminhs']-spws # min latitude for the hurricane season
+
+# Loop through the intensity levels
 for i in range(0,qlev.shape[0]):
 
     # Extra percentage level associated with the most extreme case
@@ -333,7 +346,6 @@ for i in range(0,qlev.shape[0]):
     # ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
     gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
     gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
-    cs=ax.contourf(lon,lat,gaussian_filter(probecdf[i,:,:],gft),levels=plevels,alpha=0.7,cmap=cmap,zorder=1,transform = ccrs.PlateCarree())
     ax.add_feature(cartopy.feature.OCEAN,facecolor=("white"))
     ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
     ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
@@ -341,6 +353,27 @@ for i in range(0,qlev.shape[0]):
     title = "Prob "+fvarname+">"+str(qlev[i]).zfill(1)+funits+", Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
     title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
     title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
+
+    # If external and in the hurricane season, it masks the tropics.
+    if mode=='external' and (month>=6 and month<=10) and np.any((np.linspace(wconfig['latminhs'],slatmax,10)>-25.) & (np.linspace(wconfig['latminhs'],slatmax,10)<25.)):
+        contour_data = gaussian_filter(probecdf[i, :, :], gft)
+        tropical_mask = (lat >= -30) & (lat <= 30)
+        # Expand tropical_mask to match the shape of contour_data
+        tropical_mask_expanded = np.tile(tropical_mask[:, np.newaxis], (1, lon.shape[0]))
+        # Add transparency to tropical areas
+        cs = ax.contourf(lon, lat, np.ma.masked_where(tropical_mask_expanded, contour_data), 
+                                      levels=plevels, cmap=cmap, alpha=0.7, zorder=1, transform=ccrs.PlateCarree())
+
+        ax.add_patch(plt.Rectangle((slonmin, -30), 360, 60, transform=ccrs.PlateCarree(), color='whitesmoke', alpha=0.4, zorder=2, hatch='//', edgecolor='none'))
+        ax.add_patch(plt.Rectangle((slonmin, -30), 360, 60, transform=ccrs.PlateCarree(), color='whitesmoke', alpha=0.4, zorder=2, hatch='\\', edgecolor='none'))
+
+        plt.text(slonmin+spws-270+1, 0., 'This product is not intended for tropical cyclones', color='k', fontsize=8, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'), zorder=4)
+        plt.text(slonmin+spws-270+1, -5., 'Previous statistical validations indicated highest accuracy in extratropical regions,', color='k', fontsize=7, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),zorder=4)
+        plt.text(slonmin+spws-270+1, -10., 'so the tropical latitudes have been masked.', color='k', fontsize=7, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),zorder=4)
+
+    else:
+        cs=ax.contourf(lon,lat,gaussian_filter(probecdf[i,:,:],gft),levels=plevels,alpha=0.7,cmap=cmap,zorder=1,transform = ccrs.PlateCarree())
+
     ax.set_title(title); del title
     plt.tight_layout()
     ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.06, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
@@ -352,7 +385,7 @@ for i in range(0,qlev.shape[0]):
 
     plt.axes(ax); plt.tight_layout()
     plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
-    figname = outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
+    figname = outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+mode+"_"+ftag
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
             orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 

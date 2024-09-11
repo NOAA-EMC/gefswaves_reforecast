@@ -1,0 +1,96 @@
+# Configuration file for probmaps_gefs.sh and probmaps_gefs.py
+
+# GEFv12 data path, where the gefs.YYYYMMDD/00/wave/gridded/*.grib2 field outputs are located:
+gefspath: /media/ricardo/ssdrmc/analysis/products/probmaps/data/nccf/com/gens/prod
+
+# Python script path and file:
+pyscript: /media/ricardo/ssdrmc/analysis/products/probmaps/probmaps_gefs.py
+
+# Output path, where the figures will be saved
+outpath: /media/ricardo/ssdrmc/analysis/products/probmaps/optest
+
+# Mode (internal or external). If external, it will mask the tropics in the hurricane season.
+mode: external
+
+# Text string for identification
+ftag: GEFSv12
+
+# Variable names
+mvars: "WS10 Hs"
+# Variable names in the grib2 file (opening with pygrib)
+mvar_wnd: "Wind speed"
+mvar_hs: "Significant height of combined wind waves and swell"
+
+# Domain for the plots. There are 2 latmin, latmin (general), and latminhs (hurricane season)
+lonmin: 140
+lonmax: 360
+latmin: -22
+latminhs: 29.5
+latmax: 82
+# number of ensemble members (control+perturbed)
+nenm: 31
+# temporal resolution
+tres: 6
+# n-max expansion (select not only the single max value in the time-series but the n-max ones, for each member)
+nmax: 2
+# spatial window size (degrees). In this case, square of 2°X2°
+spws: 2.0
+# Spatial percentile (select only the most severe neighbouring points within spws, i.e., records > spctl)
+spctl: 87
+
+# Maximum value allowed (quick quality control)
+qqvmax_wnd: 99.
+qqvmax_hs: 30.
+# Percentiles for the initial plots (not part of the product, it is just a verification)
+pctls:
+- 95
+- 99
+
+# Levels for the probability plots:
+# Wind speed in knots
+qlev_wnd:
+- 34.0
+- 48.0
+- 64.0
+# Significant wave height in meters
+qlev_hs:
+- 4.0
+- 6.0
+- 9.0
+- 14.0
+# Probability thresholds and intervals for the resuling maps
+plevels:
+- 0.15
+- 0.5
+- 0.65
+- 0.8
+- 1.0
+# Probability thresholds for the top intensity level (Hurricane Force)
+hplevels:
+- 0.05
+- 0.15
+- 0.5
+- 0.65
+- 0.8
+- 1.0
+
+# Visualization: 
+# gaussian filter spatial plot smoothing. It does not concern the prob computation, only the plots.
+gft: 2
+# tick/intervall in the colorbar of the initial plots
+vtickd_wnd: 4
+vtickd_hs: 1
+# colors of the probability map intervals (plevels)
+pcolors:
+- deepskyblue
+- navy
+- darkorange
+- firebrick
+# color of the probability map intervals for the top intensity level (Hurricane Force)
+hpcolors:
+- aquamarine
+- deepskyblue
+- navy
+- darkorange
+- firebrick
+
