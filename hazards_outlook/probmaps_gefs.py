@@ -320,7 +320,7 @@ cmap = ListedColormap(pcolors)
 
 # If hurricane season, mask the tropics for external plots
 month = int(np.datetime64(wtime[0]+np.timedelta64(ltime1,'D')).astype('datetime64[M]').astype(int) % 12 + 1)
-if mode=='external' and (month>=6 and month<=10):
+if mode=='external' and (month>=6 and month<=11):
     slatmin=wconfig['latminhs']-spws # min latitude for the hurricane season
 
 # Loop through the intensity levels
@@ -355,7 +355,7 @@ for i in range(0,qlev.shape[0]):
     title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
 
     # If external and in the hurricane season, it masks the tropics.
-    if mode=='external' and (month>=6 and month<=10) and np.any((np.linspace(wconfig['latminhs'],slatmax,10)>-25.) & (np.linspace(wconfig['latminhs'],slatmax,10)<25.)):
+    if mode=='external' and (month>=6 and month<=11) and np.any((np.linspace(wconfig['latminhs'],slatmax,10)>-25.) & (np.linspace(wconfig['latminhs'],slatmax,10)<25.)):
         contour_data = gaussian_filter(probecdf[i, :, :], gft)
         tropical_mask = (lat >= -30) & (lat <= 30)
         # Expand tropical_mask to match the shape of contour_data
