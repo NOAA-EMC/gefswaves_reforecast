@@ -1,6 +1,7 @@
 #!/bin/bash --login
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
+#SBATCH --mem=128G
 #SBATCH -q batch
 #SBATCH -t 08:00:00
 #SBATCH -A marine-cpu
@@ -12,10 +13,11 @@
 # DIRJOUT="/work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/version1p2/jobs"
 # export YEAR=2023
 # export MONTH=1
-# sbatch --output=${DIRJOUT}/probmaps_gefs_refcst_${YEAR}${MONTH}${DAY}.out probmaps_gefs_refcst.sh
+# sbatch --output=${DIRJOUT}/probmaps_gefs_refcst_${YEAR}${MONTH}${DAY}.out probmaps_gefs_refcst_monthly.sh
 
-ulimit -s unlimited
-ulimit -c 0
+# ulimit -s unlimited
+# ulimit -c 0
+ulimit -v 16777216
 
 export YEAR=${YEAR}
 export MONTH=${MONTH}
@@ -24,6 +26,8 @@ HOUR=0
 echo " Starting at "$(date +"%T")
 
 # INPUT ARGUMENT
+# tag name that will be included in the png figure.
+ftag="Pacific"
 # .yaml configuration file containing paths and information for this
 #   shell script as well as for the python code.
 PYCYAML="/work/noaa/marine/ricardo.campos/work/products/probmaps/reruns_experiments/probmaps_gefs_refcst.yaml"
@@ -34,6 +38,9 @@ GEFSMDIR=$(echo "$gefspath_line" | awk -F': ' '{print $2}')
 #  Python script (probability maps)
 pyscript_line=$(grep 'pyscript' "${PYCYAML}")
 PYSCRIPT=$(echo "$pyscript_line" | awk -F': ' '{print $2}')
+#  Python script (hindcast reference)
+pyhindcst_line=$(grep 'pyhindcst' "${PYCYAML}")
+PYHINDCST=$(echo "$pyhindcst_line" | awk -F': ' '{print $2}')
 #  Variable names, for the python processing (probability maps)
 mvars_line=$(grep 'mvars' "${PYCYAML}")
 MVARS=$(echo "$mvars_line" | awk -F': ' '{gsub(/"/, "", $2); print $2}')
@@ -62,9 +69,25 @@ for DAY in `seq 1 31`; do
   else
     # loop through variables
     for WW3VAR in ${MVARS[*]}; do
-      python3 ${PYSCRIPT} ${PYCYAML} $DATE 7 14 ${WW3VAR}
-      echo " Probability maps for ${WW3VAR} ${DATE} Ok."
-      wait $!
+
+      if ls ${OUTPATH}/ProbMap_${WW3VAR}_*_${DATEF}_${ftag}.png 1> /dev/null 2>&1; then
+        echo "File ProbMap_${WW3VAR}_*_${DATEF}_${ftag}.png exists"
+      else
+        python3 ${PYSCRIPT} ${PYCYAML} $DATE 7 14 ${WW3VAR} ${ftag}
+        wait $!
+        echo " Probability maps for ${WW3VAR} ${DATE} Ok."
+      fi
+
+      # test -f ${OUTPATH}/HindcastReference_${WW3VAR}_${DATEF}_fcst07to14_${ftag}.png
+      # TE=$?
+      # if [ ${TE} -eq o ]; then
+      #  echo "File HindcastReference_${WW3VAR}_${DATEF}_fcst07to14_${ftag}.png exists"
+      # else
+      #  python3 ${PYHINDCST} ${PYCYAML} $DATE 7 14 ${WW3VAR} ${ftag}
+      #  wait $!
+      #  echo " HindcastReference map for ${WW3VAR} ${DATE} Ok."
+      # fi
+
     done
     wait $!
     sleep 1
