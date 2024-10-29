@@ -60,6 +60,7 @@ import cartopy.crs as ccrs
 # Palette and colors for plotting the figures
 import matplotlib.colors as colors
 import sys
+import gc
 import warnings; warnings.filterwarnings("ignore")
 # --------------------------------------------------------------------------
 sl=13 # plot style configuration
@@ -78,7 +79,9 @@ ltime2=int(sys.argv[4])
 # forecast variable: WS10, Hs
 fvarname=str(sys.argv[5])
 if len(sys.argv) >= 5:
-    name_event=str(sys.argv[6])
+    name_event="_"+str(sys.argv[6])
+else:
+    name_event=str('')
 
 # Fixed configuration variables, read yaml file -----------
 print(" "); print(" Reading yaml configuration file ...")
@@ -186,7 +189,6 @@ for enm in range(0,nenm):
         ds.close(); del ds
 
     f=nc.Dataset(fname)
-    # opening and reading with pygrib (faster than xarray cfgrib)
     fmod[:,enm,:,:] = np.array(f.variables[mvar][:,:,:][indi:indf,:,:])
     f.close(); del f    
     print(repr(enm)); c=c+1
@@ -289,7 +291,7 @@ for i in range(0,qlev.shape[0]):
 
     plt.axes(ax); plt.tight_layout()
     plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
-    figname = outpath+"ProbMap_"+fvarname+"_"+str(round(qlev[i])).zfill(1)+"_"+fcdate+"_"+name_event
+    figname = outpath+"ProbMap_"+fvarname+"_"+str(round(qlev[i])).zfill(1)+"_"+fcdate+name_event
     plt.savefig(figname+".png", dpi=130, facecolor='w', edgecolor='w',
             orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
@@ -298,5 +300,6 @@ for i in range(0,qlev.shape[0]):
     del ax, figname
     print("   Plot ... qlev "+repr(qlev[i]))
 
+gc.collect()
 print(" 3. Probability Plots ... OK"); print(" ")
 

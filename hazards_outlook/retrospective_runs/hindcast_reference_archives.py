@@ -66,6 +66,7 @@ from time import strptime
 import cartopy
 import cartopy.crs as ccrs
 import sys
+import gc
 import warnings; warnings.filterwarnings("ignore")
 # --------------------------------------------------------------------------
 sl=13 # plot style configuration
@@ -126,7 +127,9 @@ if __name__ == "__main__":
     # forecast variable: WS10, Hs
     fvarname=str(sys.argv[5])
     if len(sys.argv) >= 5:
-        name_event=str(sys.argv[6])
+        name_event="_"+str(sys.argv[6])
+    else:
+        name_event=str('')
 
     # Fixed configuration variables, read yaml file -----------
     print(" "); print(" Reading yaml configuration file ...")
@@ -262,10 +265,11 @@ if __name__ == "__main__":
     cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
     plt.axes(ax); plt.tight_layout()
 
-    figname = outpath+"HindcastReference_"+fvarname+"_"+fcdate+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+name_event
+    figname = outpath+"HindcastReference_"+fvarname+"_"+fcdate+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+name_event
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
         orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
     plt.close('all'); del ax
     print(" Plots Ok.")
+    gc.collect()
 

@@ -40,7 +40,7 @@ PERSON OF CONTACT:
 """
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import numpy as np
 import sys
 import pandas as pd
@@ -66,9 +66,9 @@ if __name__ == "__main__":
     # Pacific
     bid=np.array([13,14,15,16,17,18,19,20]).astype('int')
     # Tropical
-    bid=np.array([2,3,4,5,6,7,8,9,10,11]).astype('int')
+    bid=np.array([1,2,3,4,5,6,7,8,9,10,11,20]).astype('int')
     # Extratropical
-    bid=np.array([12,13,14,15,16,17,18,19]).astype('int')
+    bid=np.array([0,1,6,12,13,14,15,16,17,18,19]).astype('int')
 
     lbid = len(bid)
     # variable (u10 or hs)
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     ltime1=7
     ltime2=14
     # output path
-    opath="/home/ricardo/cimas/analysis/3assessments/fuzzy_verification/output"
+    opath="/home/ricardo/cimas/analysis/Week2ProbForecast/3assessments/fuzzy_verification/output"
     # opath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/output"
     # file tag to same output fils
     ftag=opath+"/Validation_"+wvar+"_"

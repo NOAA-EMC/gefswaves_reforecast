@@ -39,7 +39,7 @@ PERSON OF CONTACT:
 """
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 from matplotlib.dates import DateFormatter
 import netCDF4 as nc
 import numpy as np
