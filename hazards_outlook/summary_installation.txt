@@ -1,0 +1,14 @@
+Python packages must be installed in this order:
+
+ecCodes
+conda install -c conda-forge eccodes
+
+cfgrib
+conda install -c conda-forge cfgrib
+
+xarray
+conda install -c conda-forge xarray
+
+pygrib
+conda install -c conda-forge pygrib
+

@@ -268,7 +268,7 @@ for i in range(0,pctls.shape[0]):
     plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
     figname = outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
-        orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+        orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
     plt.close('all')
     # convert to kmz
@@ -387,7 +387,7 @@ for i in range(0,qlev.shape[0]):
     plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
     figname = outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+mode+"_"+ftag
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
-            orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+            orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
     plt.close('all')
 

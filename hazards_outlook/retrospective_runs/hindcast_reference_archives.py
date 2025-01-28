@@ -267,7 +267,7 @@ if __name__ == "__main__":
 
     figname = outpath+"HindcastReference_"+fvarname+"_"+fcdate+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+name_event
     plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
-        orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+        orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
     plt.close('all'); del ax
     print(" Plots Ok.")

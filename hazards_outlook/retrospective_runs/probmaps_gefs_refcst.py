@@ -293,7 +293,7 @@ for i in range(0,qlev.shape[0]):
     plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
     figname = outpath+"ProbMap_"+fvarname+"_"+str(round(qlev[i])).zfill(1)+"_"+fcdate+name_event
     plt.savefig(figname+".png", dpi=130, facecolor='w', edgecolor='w',
-            orientation='portrait', papertype=None, format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+            orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
 
     plt.close('all')
 
