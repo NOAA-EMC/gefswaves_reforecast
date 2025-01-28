@@ -8,6 +8,7 @@ VERSION AND LAST UPDATE:
  v1.0  10/30/2023
  v1.1  11/03/2023
  v1.2  05/20/2024
+ v1.3  01/10/2025
 
 PURPOSE:
  Validation of long-term probabilistic wave forecasts using 
@@ -33,6 +34,8 @@ AUTHOR and DATE:
   and probabilistic assessments.
  05/20/2024: Ricardo M. Campos, including all the station in the analysis,
   GDAS has been excluded, and code renamed to fuzzy_verification_GEFS.py
+ 01/10/2025: Ricardo M. Campos, climatology and persistence added to the prob validation. Skill 
+  scores BSS and CRPSS included. Unnecessary plots have been removed."
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
@@ -40,7 +43,7 @@ PERSON OF CONTACT:
 """
 
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import numpy as np
 import sys
 import pandas as pd
@@ -51,36 +54,37 @@ from wcpval import *
 import warnings; warnings.filterwarnings("ignore")
 
 sl=13
-matplotlib.rcParams.update({'font.size': sl}); plt.rc('font', size=sl) 
+matplotlib.rcParams.update({'font.size': sl}); plt.rc('font', size=sl)
 matplotlib.rc('xtick', labelsize=sl); matplotlib.rc('ytick', labelsize=sl); matplotlib.rcParams.update({'font.size': sl})
 
 if __name__ == "__main__":
 
     # point manual selection (index)
     # All
-    bid=np.arange(0,21).astype('int')
+    # bid=np.arange(0,21).astype('int')
     # Gulf
-    bid=np.array([8,9,10,11]).astype('int')
+    # bid=np.array([8,9,10,11]).astype('int')
     # Atlantic
-    bid=np.array([0,1,2,3,4,5,6,7,12]).astype('int')
+    # bid=np.array([0,1,2,3,4,5,6,7,12]).astype('int')
     # Pacific
-    bid=np.array([13,14,15,16,17,18,19,20]).astype('int')
+    # bid=np.array([13,14,15,16,17,18,19,20]).astype('int')
     # Tropical
-    bid=np.array([1,2,3,4,5,6,7,8,9,10,11,20]).astype('int')
+    # bid=np.array([1,2,3,4,5,6,7,8,9,10,11,20]).astype('int')
     # Extratropical
-    bid=np.array([0,1,6,12,13,14,15,16,17,18,19]).astype('int')
+    # bid=np.array([0,1,6,12,13,14,15,16,17,18,19]).astype('int')
 
     lbid = len(bid)
     # variable (u10 or hs)
-    wvar='hs'
+    wvar='u10'
     # Forecast Lead Time (Day) and intervall
     ltime1=7
     ltime2=14
     # output path
-    opath="/home/ricardo/cimas/analysis/Week2ProbForecast/3assessments/fuzzy_verification/output"
-    # opath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/output"
+    # opath="/home/ricardo/work/noaa/analysis/Week2ProbForecast/3assessments/fuzzy_verification/output"
+    opath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/output"
     # file tag to same output fils
     ftag=opath+"/Validation_"+wvar+"_"
+
     # ---- Read statistical parameters (exaclty the same as the operational config file) -----
     print(" "); print(" Reading yaml configuration file ...")
     with open('probmaps_gefs.yaml', 'r') as file:
@@ -97,14 +101,16 @@ if __name__ == "__main__":
     nmax = int(wconfig['nmax']); spws = int(wconfig['spws']); spctl = float(wconfig['spctl'])
 
     # -------------------------------------
-
     # READ DATA
+    print(" Reading Model Data ...")
     # list of netcdf files generated with buildfuzzydataset.py (GEFS, GDAS, and NDBC buoy)
     # ls -d $PWD/*.nc > list.txt &
-    wlist = np.atleast_1d(np.loadtxt('list.txt',dtype=str)) 
+    wlist = np.atleast_1d(np.loadtxt('list_past.txt',dtype=str)) 
     gdata = read_data(wlist,bid,ltime1,ltime2,wvar)
     indlat = gdata['indlat']; indlon = gdata['indlon']
+    print(" Reading Model Data, OK")
 
+    print(" Prepare arrays ...")
     # lengths
     lstw=int(len(wlist))
     lft = gdata['lft']
@@ -114,22 +120,20 @@ if __name__ == "__main__":
     llonm = len(gdata['lonm'])
 
     # Reshape
-    # join bstations and forecast time
-    ndbc = np.array(gdata['ndbc'].reshape(lct,lbid*lft))
-    gefs_hindcast = gdata['gefs_hindcast'].reshape(lct,lbid*lft,lensm,llatm,llonm)
-    gefs_forecast = gdata['gefs_forecast'].reshape(lct,lbid*lft,lensm,llatm,llonm)
-    # join cycles
-    r_ndbc = np.array(ndbc.reshape(lct*lbid*lft))
-    r_gefs_hindcast = gefs_hindcast.reshape((lct*lbid*lft,lensm,llatm,llonm))
-    r_gefs_forecast = gefs_forecast.reshape((lct*lbid*lft,lensm,llatm,llonm))
+    ndbc = np.array(gdata['ndbc'].reshape(lct*lbid,lft))
+    gefs_hindcast = gdata['gefs_hindcast'].reshape(lct*lbid,lft,lensm,llatm,llonm)
+    gefs_forecast = gdata['gefs_forecast'].reshape(lct*lbid,lft,lensm,llatm,llonm)
+    gefs_forecast_p = gdata['gefs_forecast_p'].reshape(lct*lbid,lft,lensm,llatm,llonm)
+    print(" Prepare arrays, OK")
 
     # ===== Mimic the operational probability maps methodology ===== 
+    print(" Compute probabilities (same as operational) ...")
 
     # Ground truth (nmax within each cycle), buoy and Hindcast:
     ndbc_t = nmaxsel(ndbc,nmax)
     # model
-    gefs_hindcast_t = np.zeros((lstw),'f')*np.nan
-    for i in range(0,lstw):
+    gefs_hindcast_t = np.zeros((lct*lbid),'f')*np.nan
+    for i in range(0,lct*lbid):
         aux = np.nanmean(gefs_hindcast[i,:,:,indlat,indlon],axis=1) # average ensemble members (hindcast)
         ind = np.where(aux>-999.)
         if np.size(ind)>int(np.floor(lft/2)) :
@@ -141,24 +145,33 @@ if __name__ == "__main__":
 
         del ind,aux
 
-
     #  -- Probabilistic Forecast array --  
     gspws=int(np.floor(spws/np.diff(gdata['latm']).mean())/2)
     prob_gefs_forecast, fmod_result = probforecast(nmax,gspws,spctl,gefs_forecast,qlev)
+    prob_gefs_forecast_p, fmod_result_p = probforecast(nmax,gspws,spctl,gefs_forecast_p,qlev)
 
+    # Climatology
+    prob_gefs_forecast_c = np.array(prob_gefs_forecast*0.)
+    aux = np.array( gefs_forecast[:,:,:,indlat,indlon] ).reshape(gefs_forecast.shape[0]*gefs_forecast.shape[1]*gefs_forecast.shape[2])
+    for i in range(0,len(qlev)):
+        ind = np.where(aux>qlev[i])
+        if np.size(ind)>0:
+            prob_gefs_forecast_c[:,i] = float(len(ind[0])/len(aux))
+            del ind
+
+    del aux
+    fmod_result_c = np.array(fmod_result*0.)+np.nanmean(fmod_result)
+    print(" Compute probabilities (same as operational), OK")
 
     #  ++++++++ VALIDATION +++++++++++++++
-
-    # Quality of ground truth: Initial Validation Hindcast X Buoy, deterministic
-    for i in range(0,len(qlev)):
-        # Deterministic, matching positions and time
-        if i==0:
-            mop=ModelObsPlot(np.nanmean(r_gefs_hindcast[:,:,indlat,indlon],axis=1),r_ndbc,ftag=ftag+"DeterministicVal_GEFShindcast_")
-            mop.scatterplot(); mop.pdf(); mop.qqplot()
+    print(" VALIDATION ... ")
 
     # ===== Categorical approach, verification of binary events =====
 
-    # Binary Categorical array
+    # ---- Binary Categorical array ------
+    print(" Binary Categorical ... ")
+
+    # GEFS
     fprob_gefs_forecast = probforecast_binary(prob_gefs_forecast,qlev,plevels)
     # Validation scores
     for i in range(0,len(qlev)):
@@ -174,75 +187,125 @@ if __name__ == "__main__":
             df = pd.DataFrame(dict_list)
             df.to_csv(ftag+"CategoricalVal_Lev"+repr(np.round(fqlev[i],2))+"_Prob"+repr(np.round(plevels[j],2))+".csv",sep='\t', index=False)
 
+    # GEFS persistence
+    fprob_gefs_forecast_p = probforecast_binary(prob_gefs_forecast_p,qlev,plevels)
+    # Validation scores
+    for i in range(0,len(qlev)):
+        for j in range(0,lplev):
+            ceval_gefs_ndbc_p = categorical_bin_eval(fprob_gefs_forecast_p[:,i,j],ndbc_t,qlev[i])
+            ceval_gefs_ghnd_p = categorical_bin_eval(fprob_gefs_forecast_p[:,i,j],gefs_hindcast_t,qlev[i])
+            dict_list = [
+                {'Name': 'gefs_ndbc', **ceval_gefs_ndbc_p},
+                {'Name': 'gefs_gefsHindcast', **ceval_gefs_ghnd_p}
+            ]
 
+            # Convert the list of dictionaries into a pandas DataFrame
+            df = pd.DataFrame(dict_list)
+            df.to_csv(ftag+"CategoricalVal_Persistence_Lev"+repr(np.round(fqlev[i],2))+"_Prob"+repr(np.round(plevels[j],2))+".csv",sep='\t', index=False)
+
+    print(" Binary Categorical, OK")
+
+    # ========================================================
     # Probabilistic approach, verification of event frequency
-    # BS, CRPS, ROC, reliability curve
+    # BSS, CRPSS, ROC, Reliability Curve
 
-    onames = ['gefs_ndbc', 'gefs_gefsHindcast']
+    print(" Probabilistic validation.")
+    print(" Brier skill score ...")
 
     plt.close('all')
-    # --- Brier Score ---
+
+    # --- Brier Skill Score ---
+    # GEFS
     for i in range(0,len(qlev)):
         fbriers=[]
-        fftag=ftag+"ProbEvents_NDBC_"+repr(np.round(fqlev[i],2))
-        briers = brier_score(prob_gefs_forecast[:,i],ndbc_t,qlev[i],gdata['cdate'],fftag)
-        fbriers = np.append(fbriers,briers)
+        briers = brier_score(prob_gefs_forecast[:,i],gefs_hindcast_t,qlev[i])
+        briers_p = brier_score(prob_gefs_forecast_p[:,i],gefs_hindcast_t,qlev[i])
+        briers_c = brier_score(prob_gefs_forecast_c[:,i],gefs_hindcast_t,qlev[i])
 
-        fftag=ftag+"ProbEvents_GEFShindcast_"+repr(np.round(fqlev[i],2))
-        briers = brier_score(prob_gefs_forecast[:,i],gefs_hindcast_t,qlev[i],gdata['cdate'],fftag)
-        fbriers = np.append(fbriers,briers)
+        bss_p = - (briers - briers_p)/briers_p
+        fbriers = np.append(fbriers,bss_p)
+        bss_c = - (briers - briers_c)/briers_c
+        fbriers = np.append(fbriers,bss_c)
 
-        bdata = {'Name': onames, 'Result': np.round(fbriers,3)}
+        bdata = {'Name': ['BSS_P','BSS_C'], 'Result': np.round(fbriers,3)}
         df = pd.DataFrame(bdata)
-        df.to_csv(ftag+"ProbabilisticVal_BrierScore_Lev"+repr(np.round(fqlev[i],2))+".csv",sep='\t', index=False)
+        df.to_csv(ftag+"ProbabilisticVal_BSS_Lev"+repr(np.round(fqlev[i],2))+".csv",sep='\t', index=False)
 
-    plt.close('all')
+    print(" Brier skill score, OK")
 
     # --- CRPS ---
-    fcrps_mean=[]
-    fftag=ftag+"ProbEvents_NDBC"
-    mcrps, mcrps_mean = crps(fmod_result,ndbc_t,gdata['cdate'],fftag)
-    fcrps_mean = np.append(fcrps_mean,mcrps_mean)
+    print(" CRPS ...")
 
-    fftag=ftag+"ProbEvents_GEFShindcast"
-    mcrps, mcrps_mean  = crps(fmod_result,gefs_hindcast_t,gdata['cdate'],fftag)
-    fcrps_mean = np.append(fcrps_mean,mcrps_mean)
+    fcrps=[]
+    mcrps, mcrps_mean  = crps(fmod_result,gefs_hindcast_t)
+    mcrps_p, mcrps_mean_p  = crps(fmod_result_p,gefs_hindcast_t)
+    mcrps_c, mcrps_mean_c  = crps(fmod_result_c,gefs_hindcast_t)
 
-    bdata = {'Name': onames, 'Result': np.round(fcrps_mean,4)}
+    crpss_p = 1 - (mcrps_mean/mcrps_mean_p)
+    fcrps = np.append(fcrps,crpss_p)
+    crpss_c = 1 - (mcrps_mean/mcrps_mean_c)
+    fcrps = np.append(fcrps,crpss_c)
+
+    bdata = {'Name': ['CRPSS_P','CRPSS_C'], 'Result': np.round(fcrps,4)}
     df = pd.DataFrame(bdata)
-    df.to_csv(ftag+"ProbabilisticVal_CRPS.csv",sep='\t', index=False)
+    df.to_csv(ftag+"ProbabilisticVal_CRPSS.csv",sep='\t', index=False)
 
-    plt.close('all')
+    print(" CRPS, OK")
 
+    mlabels = ['GEFS', 'GEFS_p', 'GEFS_c']
     # --- ROC Curve ---
-    for i in range(0,len(qlev)):
-        froc=[]
+    print(" ROC curve ...")
+    for i in range(0,len(qlev)-1):
+
+        prob_results = np.array([prob_gefs_forecast[:,i],prob_gefs_forecast_p[:,i],prob_gefs_forecast_c[:,i]])
+
         fftag=ftag+"ProbEvents_NDBC_"+repr(np.round(fqlev[i],2))
         true_binary = (ndbc_t > qlev[i]).astype(int)
-        roc = roc_plot(true_binary,prob_gefs_forecast[:,i],fftag)
-        froc = np.append(froc,roc); del true_binary, fftag
+        roc = roc_plot2(true_binary,prob_results,mlabels,plevels,fftag)
+
+        bdata = {'Name': mlabels, 'Result': np.round(roc,3)}
+        df = pd.DataFrame(bdata)
+        df.to_csv(ftag+"ProbabilisticVal_NDBC_ROCauc_Lev"+repr(np.round(fqlev[i],2))+".csv",sep='\t', index=False)
 
         fftag=ftag+"ProbEvents_GEFShindcast_"+repr(np.round(fqlev[i],2))
         true_binary = (gefs_hindcast_t > qlev[i]).astype(int)
-        roc = roc_plot(true_binary,prob_gefs_forecast[:,i],fftag)
-        froc = np.append(froc,roc); del true_binary, fftag
+        roc = roc_plot2(true_binary,prob_results,mlabels,plevels,fftag)
 
-        bdata = {'Name': onames, 'Result': np.round(froc,3)}
+        bdata = {'Name': mlabels, 'Result': np.round(roc,3)}
         df = pd.DataFrame(bdata)
-        df.to_csv(ftag+"ProbabilisticVal_ROCauc_Lev"+repr(np.round(fqlev[i],2))+".csv",sep='\t', index=False)
+        df.to_csv(ftag+"ProbabilisticVal_GEFShindcast_ROCauc_Lev"+repr(np.round(fqlev[i],2))+".csv",sep='\t', index=False)
 
     plt.close('all')
+    print(" ROC curve, OK")
 
     # --- Reliability Curve ---
+    print(" Reliability Curve ...")
     for i in range(0,len(qlev)):
+
+        if i<2:
+            nbins=10
+            pmax=1
+        else:
+            nbins=5
+            pmax=0.75
+
+        prob_results = np.array([prob_gefs_forecast[:,i],prob_gefs_forecast_p[:,i],prob_gefs_forecast_c[:,i]])
+
+        obs = ndbc_t[~np.isnan(ndbc_t)]
+        ind=np.where(obs >=fqlev[i])
+        if np.size(ind)>0:
+            cfreq = len(ind[0])/len(obs)
+        else:
+            cfreq = 0.00001
 
         fftag=ftag+"ProbEvents_NDBC_"+repr(np.round(fqlev[i],2))
         true_binary = (ndbc_t > qlev[i]).astype(int)
-        reliability_curve(true_binary,prob_gefs_forecast[:,i],fftag)
+        reliability_curve(true_binary,prob_results,cfreq,mlabels,nbins,pmax,fftag)
 
-        fftag=ftag+"ProbEvents_GEFShindcast_"+repr(np.round(fqlev[i],2))
+        fftag=ftag+"ProbEvents_GEFShindcast2_"+repr(np.round(fqlev[i],2))
         true_binary = (gefs_hindcast_t > qlev[i]).astype(int)
-        reliability_curve(true_binary,prob_gefs_forecast[:,i],fftag)
+        reliability_curve(true_binary,prob_results,cfreq,mlabels,nbins,pmax,fftag)
 
     plt.close('all')
+    print(" Reliability Curve, OK")
 
