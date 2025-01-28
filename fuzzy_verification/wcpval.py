@@ -34,7 +34,7 @@ AUTHOR and DATE:
   and probabilistic assessments.
  05/21/2024: Ricardo M. Campos, renamed to wcpval.py, new reliability curve plot
  01/10/2025: Ricardo M. Campos, climatology and persistence added to reliability diagrams and ROC
-  plots. New updated added to the reliability diagram plots.
+  plots. New updates added to the reliability diagram plots.
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
