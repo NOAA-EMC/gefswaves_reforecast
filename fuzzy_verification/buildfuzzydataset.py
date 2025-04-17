@@ -7,11 +7,12 @@ buildfuzzydataset.py
 VERSION AND LAST UPDATE:
  v1.0  09/10/2023
  v1.1  05/09/2024
+ v1.2  04/03/2025
 
 PURPOSE:
- Python script to build a dataset with GEFS forecast, GEFS forecast (hindcasted 24-h slices),
-  and NDBC buoy data. It uses the NDBC buoy point positions to select the nearest model point and
-  neighbouring points using a window (wl size) centered at the NDBC buoy point.
+ Python script to build a dataset with GEFS forecast and GEFS reanalysis (hindcasted 24-h slices),
+  It uses previously defined point positions to select the nearest model point and
+  neighbouring points using a window (wl size) centered at the each point.
   This is intended for fuzzy verification.
 
 USAGE:
@@ -19,7 +20,7 @@ USAGE:
  python3 buildfuzzydataset.py 20220701
 
 OUTPUT:
- Netcdf file GEFS.BUOY.PointExtract.YYYYMMDD.nc saved in the given outpath.
+ Netcdf file GEFS.PointExtract.YYYYMMDD.nc saved in the given outpath.
 
 DEPENDENCIES:
  See setup.py and the imports below.
@@ -27,12 +28,15 @@ DEPENDENCIES:
 AUTHOR and DATE:
  09/10/2023: Ricardo M. Campos, first version.
  05/09/2024: Ricardo M. Campos. GDAS removed. Now reading post-processed netcdf file instead of .grib2 (much faster).
+ 04/03/2025: Ricardo M. Campos. NDBC buoy data removed. Observations and other sources of ground truth 
+  can be included at a later stage.
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
 
 """
-
+import matplotlib
+matplotlib.use('Agg')
 import numpy as np
 import sys
 import pandas as pd
@@ -46,7 +50,6 @@ import wread
 import warnings; warnings.filterwarnings("ignore")
 # netcdf format
 fnetcdf="NETCDF4"
-
 
 def read_gefs(date,mvar,path_gefs):
 
@@ -120,65 +123,6 @@ def build_gefs_hindcast(date,mvar,path_gefs):
     return fmod, np.array(lat), np.array(lon), wtime, wdate
 
 
-def read_buoy(date,bid,anh,blat,blon,path_buoy):
-
-    auxltime=np.array(np.arange(0,384+1,6)).astype('int')
-    atime=np.array(auxltime*3600.+timegm( strptime(date,'%Y%m%d') )).astype('double')
-    # year
-    datestrg1=str(time.gmtime(atime[0])[0]); datestrg2=str(time.gmtime(atime[-1])[0])
-    pskip = 0
-    if datestrg1 == datestrg2 :
-
-        try: 
-            bdata=wread.tseriesnc_ndbc(path_buoy+str(bid)+"h"+datestrg1+".nc",anh=anh)
-            bt=np.array(bdata['time']).astype('double')
-            fbdata=np.array([bdata['wind_spd']])
-            fbdata=np.append(fbdata,[bdata['hs']],axis=0)
-            fbdata=np.append(fbdata,[bdata['tp']],axis=0)
-            ndbclat=float(bdata['latitude']); ndbclon=float(bdata['longitude'])
-            del bdata
-        except:
-            print("   No file "+path_buoy+str(bid)+"h"+datestrg1+".nc")
-            fdata = np.zeros((3,len(atime)),'f')*np.nan
-            ndbclat=blat; ndbclon=blon
-            pskip = 1
-        else:
-            print("    read_buoy "+str(bid)+" "+str(date)+" ok")
-
-    else:
-
-        try: 
-            bdata1=wread.tseriesnc_ndbc(path_buoy+str(bid)+"h"+datestrg1+".nc",anh=anh)
-            bdata2=wread.tseriesnc_ndbc(path_buoy+str(bid)+"h"+datestrg2+".nc",anh=anh)
-            bt=np.array(np.append(bdata1['time'],bdata2['time'])).astype('double')
-            fbdata=np.array([np.append(bdata1['wind_spd'],bdata2['wind_spd'])])
-            fbdata=np.append(fbdata,[np.append(bdata1['hs'],bdata2['hs'])],axis=0)
-            fbdata=np.append(fbdata,[np.append(bdata1['tp'],bdata2['tp'])],axis=0)
-            ndbclat=float(bdata1['latitude']); ndbclon=float(bdata1['longitude'])
-            del bdata1,bdata2
-        except:
-            print("   No file "+path_buoy+str(bid)+"h"+datestrg1+".nc and/or "+path_buoy+str(bid)+"h"+datestrg2+".nc")
-            fdata = np.zeros((3,len(atime)),'f')*np.nan
-            ndbclat=blat; ndbclon=blon
-            pskip = 1
-        else:
-            print("    read_buoy "+str(bid)+" "+str(date)+" ok")
-
-    if pskip == 0:
-        fdata=np.zeros((3,len(atime)),'f')*np.nan
-        for i in range(0,len(atime)):
-            indt=np.where(np.abs(atime[i]-bt)<3600)
-            if np.size(indt)>0:
-                indt=indt[0]
-                for j in range(0,fbdata.shape[0]):
-                    fdata[j,i]=np.nanmean(fbdata[j,indt])
-
-                del indt
-
-    return fdata, ndbclat, ndbclon, atime
-    del pskip
-
-
 if __name__ == "__main__":
 
     # Input argument (cycle time only):
@@ -193,11 +137,10 @@ if __name__ == "__main__":
     # number of ensemble members
     nenm=int(30+1)
     # Data paths
-    path_gefs="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf/"
-    path_buoy="/work/noaa/marine/ricardo.campos/data/buoys/NDBC/ncformat/wparam/"
+    path_gefs="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf/week2project/"
     outpath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/data/"
-    # Read Buoy points
-    ds_buoy = pd.read_csv('/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/buoys_sel.txt',comment='#',delimiter=r"\s+")
+    # Read points
+    ds_points = pd.read_csv('/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/points_sel.txt',comment='#',delimiter=r"\s+")
 
     # variable names
     mvar=np.array(["WIND_surface","HTSGW_surface","PERPW_surface"])
@@ -207,94 +150,82 @@ if __name__ == "__main__":
     # GEFS sliced, build hindcast
     gefs_hindcast, ghlat, ghlon, ghtime, ghdate = build_gefs_hindcast(date,mvar,path_gefs)
 
-    for i in range(0,len(ds_buoy)):
-        bid=ds_buoy['buoyID'][i]; anh=ds_buoy['AnH'][i]
-        blat=float(ds_buoy['Lat'][i]); blon=float(ds_buoy['Lon'][i])
+    for i in range(0,len(ds_points)):
+        bid=ds_points['ID'][i]; blat=float(ds_points['Lat'][i]); blon=float(ds_points['Lon'][i])
 
-        # buoy lon standard
+        # lon standard
         if blon<0:
             blon=blon+360
 
-        # Buoy data
-        buoy_data, bdlat, bdlon, bdtime = read_buoy(date,bid,anh,blat,blon,path_buoy)
-
         dlat=int(np.round(wl/np.mean(np.diff(gflat))))
-        indlat=np.min(np.where(np.abs(gflat-blat) == np.min(np.abs(gflat-blat))))
-        indlat=np.array(np.arange(int(indlat-dlat),int(indlat+dlat+1))).astype('int')
+        ilat=np.min(np.where(np.abs(gflat-blat) == np.min(np.abs(gflat-blat))))
+        indlat=np.array(np.arange(int(ilat-dlat),int(ilat+dlat+1))).astype('int')
 
         dlon=int(np.round(wl/np.mean(np.diff(gflon))))
-        indlon=np.min(np.where(np.abs(gflon-blon) == np.min(np.abs(gflon-blon))))
-        indlon=np.array(np.arange(int(indlon-dlon),int(indlon+dlon+1))).astype('int')
+        ilon=np.min(np.where(np.abs(gflon-blon) == np.min(np.abs(gflon-blon))))
+        indlon=np.array(np.arange(int(ilon-dlon),int(ilon+dlon+1))).astype('int')
 
         if (np.array_equal(gflat,ghlat)==True) and (np.array_equal(gflon,ghlon)==True) and (np.array_equal(gftime,ghtime)==True):
-            if i==0:
 
+            if i==0:
                 fgefs_forecast = np.array([gefs_forecast[:,:,:,indlat,:][:,:,:,:,indlon]])
-                fgefs_hindcast = np.array([gefs_hindcast[:,:,:,indlat,:][:,:,:,:,indlon]])
-                fbuoy_data = np.array([buoy_data])
+                fgefs_hindcast = np.array([gefs_hindcast[:,:,:,ilat,ilon]])
                 fgftime = np.array(gftime)
                 fgflat = np.array([gflat[indlat]])
                 fgflon = np.array([gflon[indlon]])
-
             else:
-
                 fgefs_forecast = np.append(fgefs_forecast,np.array([gefs_forecast[:,:,:,indlat,:][:,:,:,:,indlon]]),axis=0)
-                fgefs_hindcast = np.append(fgefs_hindcast,np.array([gefs_hindcast[:,:,:,indlat,:][:,:,:,:,indlon]]),axis=0)
-                fbuoy_data = np.append(fbuoy_data,np.array([buoy_data]),axis=0)
+                fgefs_hindcast = np.append(fgefs_hindcast,np.array([gefs_hindcast[:,:,:,ilat,ilon]]),axis=0)
                 fgflat = np.append(fgflat,np.array([gflat[indlat]]),axis=0)
                 fgflon = np.append(fgflon,np.array([gflon[indlon]]),axis=0)
 
-        del buoy_data,dlat,dlon,indlat,indlon
+        del dlat,dlon,indlat,indlon
         print(" "); print(" --- Point "+repr(bid)+" Ok."); print(" ")
 
-    # keep model longitude with the same standard as the NDBC lon (-180 to 180)
-    fbmlon=np.array(ds_buoy['Lon']).astype('float'); fbmlon[fbmlon>180]=fbmlon[fbmlon>180]-360.
+    # keep model longitude with the same standard as (-180 to 180)
+    fbmlon=np.array(ds_points['Lon']).astype('float'); fbmlon[fbmlon>180]=fbmlon[fbmlon>180]-360.
 
     # Save netcdf output file
-    ncfile = nc.Dataset(outpath+"GEFS.BUOY.PointExtract."+date+".nc", "w", format=fnetcdf)
-    ncfile.history="Data extracted from GEFS, for NDBC buoy positions and neighbouring points."
+    ncfile = nc.Dataset(outpath+"GEFS.PointExtract."+date+".nc", "w", format=fnetcdf)
+    ncfile.history="Data extracted from GEFS, for selected point positions and neighbouring points."
     # create  dimensions.
-    ncfile.createDimension('buoy_points', len(ds_buoy))
+    ncfile.createDimension('points', len(ds_points))
     ncfile.createDimension('ensemble_member', nenm)
     ncfile.createDimension('time', len(fgftime) )
     ncfile.createDimension('lat', fgflat.shape[1] )
     ncfile.createDimension('lon', fgflon.shape[1] )
     # create variables.
     vt = ncfile.createVariable('time',np.dtype('float64').char,('time'))
-    vbid = ncfile.createVariable('buoyID',np.dtype('a25'),('buoy_points'))
-    vblat = ncfile.createVariable('buoy_lat',np.dtype('float32').char,('buoy_points'))
-    vblon = ncfile.createVariable('buoy_lon',np.dtype('float32').char,('buoy_points'))
+    vbid = ncfile.createVariable('ID',np.dtype('a25'),('points'))
+    vblat = ncfile.createVariable('point_lat',np.dtype('float32').char,('points'))
+    vblon = ncfile.createVariable('point_lon',np.dtype('float32').char,('points'))
     vensm = ncfile.createVariable('ensemble_member',np.dtype('int').char,('ensemble_member'))
-    vlat = ncfile.createVariable('lat',np.dtype('float32').char,('buoy_points','lat'))
-    vlon = ncfile.createVariable('lon',np.dtype('float32').char,('buoy_points','lon'))
+    vlat = ncfile.createVariable('lat',np.dtype('float32').char,('points','lat'))
+    vlon = ncfile.createVariable('lon',np.dtype('float32').char,('points','lon'))
     # results
-    vu10_gefs_forecast = ncfile.createVariable('u10_gefs_forecast',np.dtype('float32').char,('buoy_points','time','ensemble_member','lat','lon'))
-    vhs_gefs_forecast = ncfile.createVariable('hs_gefs_forecast',np.dtype('float32').char,('buoy_points','time','ensemble_member','lat','lon'))
-    vtp_gefs_forecast = ncfile.createVariable('tp_gefs_forecast',np.dtype('float32').char,('buoy_points','time','ensemble_member','lat','lon'))
-    vu10_gefs_hindcast = ncfile.createVariable('u10_gefs_hindcast',np.dtype('float32').char,('buoy_points','time','ensemble_member','lat','lon'))
-    vhs_gefs_hindcast = ncfile.createVariable('hs_gefs_hindcast',np.dtype('float32').char,('buoy_points','time','ensemble_member','lat','lon'))
-    vtp_gefs_hindcast = ncfile.createVariable('tp_gefs_hindcast',np.dtype('float32').char,('buoy_points','time','ensemble_member','lat','lon'))
-    vu10_ndbc = ncfile.createVariable('u10_ndbc',np.dtype('float32').char,('buoy_points','time'))
-    vhs_ndbc = ncfile.createVariable('hs_ndbc',np.dtype('float32').char,('buoy_points','time'))
-    vtp_ndbc = ncfile.createVariable('tp_ndbc',np.dtype('float32').char,('buoy_points','time'))
+    vu10_gefs_forecast = ncfile.createVariable('u10_gefs_forecast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
+    vhs_gefs_forecast = ncfile.createVariable('hs_gefs_forecast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
+    vtp_gefs_forecast = ncfile.createVariable('tp_gefs_forecast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
+    vu10_gefs_hindcast = ncfile.createVariable('u10_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member'))
+    vhs_gefs_hindcast = ncfile.createVariable('hs_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member'))
+    vtp_gefs_hindcast = ncfile.createVariable('tp_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member'))
     # Assign units
     vt.units = 'seconds since 1970-01-01T00:00:00+00:00'
     vblat.units = 'degrees_north' ; vblon.units = 'degrees_east'
     vlat.units = 'degrees_north' ; vlon.units = 'degrees_east'
-    vu10_gefs_forecast.units = 'm/s'; vu10_gefs_hindcast.units = 'm/s'; vu10_ndbc.units = 'm/s'
-    vhs_gefs_forecast.units = 'm'; vhs_gefs_hindcast.units = 'm'; vhs_ndbc.units = 'm'
-    vtp_gefs_forecast.units = 's'; vtp_gefs_hindcast.units = 's'; vtp_ndbc.units = 's'
+    vu10_gefs_forecast.units = 'm/s'; vu10_gefs_hindcast.units = 'm/s'
+    vhs_gefs_forecast.units = 'm'; vhs_gefs_hindcast.units = 'm'
+    vtp_gefs_forecast.units = 's'; vtp_gefs_hindcast.units = 's'
     # Allocate Data
-    vt[:]=fgftime[:]; vbid[:]=np.array(ds_buoy['buoyID']).astype('str')[:]
-    vblat[:]=np.array(ds_buoy['Lat']).astype('float')[:]; vblon[:]=fbmlon[:]
+    vt[:]=fgftime[:]; vbid[:]=np.array(ds_points['ID']).astype('str')[:]
+    vblat[:]=np.array(ds_points['Lat']).astype('float')[:]; vblon[:]=fbmlon[:]
     vensm[:]=np.array(np.arange(0,nenm).astype('int'))[:]
     vlat[:,:]=fgflat[:,:]; vlon[:,:]=fgflon[:,:]
     vu10_gefs_forecast[:,:,:,:,:]=fgefs_forecast[:,0,:,:,:,:]; vhs_gefs_forecast[:,:,:,:,:]=fgefs_forecast[:,1,:,:,:,:]; vtp_gefs_forecast[:,:,:,:,:]=fgefs_forecast[:,2,:,:,:,:]
-    vu10_gefs_hindcast[:,:,:,:,:]=fgefs_hindcast[:,0,:,:,:,:]; vhs_gefs_hindcast[:,:,:,:,:]=fgefs_hindcast[:,1,:,:,:,:]; vtp_gefs_hindcast[:,:,:,:,:]=fgefs_hindcast[:,2,:,:,:,:]
-    vu10_ndbc[:,:]=fbuoy_data[:,0,:]; vhs_ndbc[:,:]=fbuoy_data[:,1,:]; vtp_ndbc[:,:]=fbuoy_data[:,2,:]
+    vu10_gefs_hindcast[:,:,:]=fgefs_hindcast[:,0,:,:]; vhs_gefs_hindcast[:,:,:]=fgefs_hindcast[:,1,:,:]; vtp_gefs_hindcast[:,:,:]=fgefs_hindcast[:,2,:,:]
     ncfile.close()
     print(' ')
-    print("Done. Netcdf ok. New file saved: "+outpath+"GEFS.BUOY.PointExtract."+date+".nc")
+    print("Done. Netcdf ok. New file saved: "+outpath+"GEFS.PointExtract."+date+".nc")
 
     stop = timeit.default_timer()
     print('Concluded in '+repr(int(round(stop - start,0)))+' seconds')
