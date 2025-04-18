@@ -318,9 +318,10 @@ for j in range(0,np.size(plevels)-1):
 
 cmap = ListedColormap(pcolors)
 
-# If hurricane season, mask the tropics for external plots
-month = int(np.datetime64(wtime[0]+np.timedelta64(ltime1,'D')).astype('datetime64[M]').astype(int) % 12 + 1)
-if mode=='external' and (month>=6 and month<=11):
+
+# If hurricane season (May 15th to Nov 31st), it mask (or cuts) the tropics for external plots
+mmdd = wtime[0].astype('datetime64[D]').astype(object).month * 100 + wtime[0].astype('datetime64[D]').astype(object).day
+if mode=='external' and (mmdd>=515 and mmdd<=1130):
     slatmin=wconfig['latminhs']-spws # min latitude for the hurricane season
 
 # Loop through the intensity levels
@@ -354,8 +355,8 @@ for i in range(0,qlev.shape[0]):
     title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
     title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
 
-    # If external and in the hurricane season, it masks the tropics.
-    if mode=='external' and (month>=6 and month<=11) and np.any((np.linspace(wconfig['latminhs'],slatmax,10)>-25.) & (np.linspace(wconfig['latminhs'],slatmax,10)<25.)):
+    # If external and in the hurricane season, it masks (or cuts) the tropics.
+    if mode=='external' and (mmdd>=515 and mmdd<=1130) and np.any((np.linspace(wconfig['latminhs'],slatmax,10)>-25.) & (np.linspace(wconfig['latminhs'],slatmax,10)<25.)):
         contour_data = gaussian_filter(probecdf[i, :, :], gft)
         tropical_mask = (lat >= -30) & (lat <= 30)
         # Expand tropical_mask to match the shape of contour_data
@@ -368,8 +369,7 @@ for i in range(0,qlev.shape[0]):
         ax.add_patch(plt.Rectangle((slonmin, -30), 360, 60, transform=ccrs.PlateCarree(), color='whitesmoke', alpha=0.4, zorder=2, hatch='\\', edgecolor='none'))
 
         plt.text(slonmin+spws-270+1, 0., 'This product is not intended for tropical cyclones', color='k', fontsize=8, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'), zorder=4)
-        plt.text(slonmin+spws-270+1, -5., 'Previous statistical validations indicated highest accuracy in extratropical regions,', color='k', fontsize=7, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),zorder=4)
-        plt.text(slonmin+spws-270+1, -10., 'so the tropical latitudes have been masked.', color='k', fontsize=7, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),zorder=4)
+        plt.text(slonmin+spws-270+1, -5., 'Tropical latitudes are masked during hurricane season.', color='k', fontsize=7, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),zorder=4)
 
     else:
         cs=ax.contourf(lon,lat,gaussian_filter(probecdf[i,:,:],gft),levels=plevels,alpha=0.7,cmap=cmap,zorder=1,transform = ccrs.PlateCarree())
