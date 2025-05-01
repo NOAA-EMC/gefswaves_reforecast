@@ -5,6 +5,7 @@
 #
 # VERSION AND LAST UPDATE:
 #   v1.0  02/15/2023
+#   v1.1  04/30/2025
 #
 # PURPOSE:
 #  Script to download NOAA Global Ensemble Forecast System (GEFS), Wave 
@@ -26,6 +27,7 @@
 #
 # AUTHOR and DATE:
 #  02/15/2023: Ricardo M. Campos, first version 
+#  04/30/2025: Ricardo M. Campos, flexible cycle time
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
@@ -40,6 +42,8 @@
 CTIME="$1"
 # destination path
 DIRW="$2"
+# cycle 00,06,12,18
+HCYCLE="12"
 
 # server address
 SERVER=https://noaa-gefs-pds.s3.amazonaws.com/
@@ -66,10 +70,10 @@ for h in $fleads;do
       if [ ${TAM} -lt 1200000 ]; then
           # Main line, download
           if [ ${e} == "00" ]; then
-            wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ${SERVER}gefs.${CTIME}/00/wave/gridded/gefs.wave.t00z.c${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 -O $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 2>&1
+            wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ${SERVER}gefs.${CTIME}/${HCYCLE}/wave/gridded/gefs.wave.t${HCYCLE}z.c${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 -O $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 2>&1
             wait $!
           else
-            wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ${SERVER}gefs.${CTIME}/00/wave/gridded/gefs.wave.t00z.p${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 -O $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 2>&1
+            wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 ${SERVER}gefs.${CTIME}/${HCYCLE}/wave/gridded/gefs.wave.t${HCYCLE}z.p${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 -O $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f"$(printf "%03.f" $h)".grib2 2>&1
             wait $!
           fi
           # test if the downloaded file exists
