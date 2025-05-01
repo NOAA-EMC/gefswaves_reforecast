@@ -68,7 +68,7 @@ MVARS=$(echo "$mvars_line" | awk -F': ' '{gsub(/"/, "", $2); print $2}')
 outpath_line=$(grep 'outpath' "${PYCYAML}")
 OUTPATH=$(echo "$outpath_line" | awk -F': ' '{print $2}')
 
-# Intended forecast cycle
+# Forecast cycle
 YEAR=`date +%Y`
 MONTH=`date +%m`
 DAY=`date +%d`
@@ -96,7 +96,7 @@ while [ "$FSIZE" -lt 1000000 ] && [ "$TRIES" -le 144 ]; do
   if [ ${TE} -eq 1 ]; then
     FSIZE=0
   else
-    FSIZE=`du -sb $GEFSMDIR/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p30.global.0p25.f384.grib2`
+    FSIZE=$(du -sb "$GEFSMDIR/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p30.global.0p25.f384.grib2" | awk '{print $1}')
   fi
 
   TRIES=`expr $TRIES + 1`
@@ -104,7 +104,7 @@ while [ "$FSIZE" -lt 1000000 ] && [ "$TRIES" -le 144 ]; do
 done
 
 # Module load python and activate environment when necessary.
-source /home/ricardo/python/anaconda3/setanaconda3.sh
+source /home/ricardo/work/python/anaconda3/setanaconda3.sh
 
 echo "  "
 echo " PYTHON PROCESSING: GLOBAL HAZARDS OUTLOOK - PROBABILITY MAPS, $YEAR$MONTH$DAY$HOUR "

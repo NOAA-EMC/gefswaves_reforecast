@@ -71,7 +71,7 @@ import matplotlib.pyplot as plt
 import zipfile
 import yaml
 from matplotlib.colors import ListedColormap
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 import numpy as np
 import pandas as pd
 import cartopy
