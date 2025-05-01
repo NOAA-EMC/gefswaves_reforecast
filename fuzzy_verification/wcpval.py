@@ -9,6 +9,7 @@ VERSION AND LAST UPDATE:
  v1.1  11/03/2023
  v1.2  05/21/2024
  v1.3  01/10/2025
+ v1.4  05/01/2025
 
 PURPOSE:
  Validation of long-term probabilistic wave forecasts using 
@@ -35,6 +36,7 @@ AUTHOR and DATE:
  05/21/2024: Ricardo M. Campos, renamed to wcpval.py, new reliability curve plot
  01/10/2025: Ricardo M. Campos, climatology and persistence added to reliability diagrams and ROC
   plots. New updates added to the reliability diagram plots.
+ 05/01/2025: Ricardo M. Campos, edit in read_data (dependence on NDBC buoy data has been removed)
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
@@ -73,7 +75,7 @@ def read_data(wlist,bid,ltime1,ltime2,wvar):
 
     lstw=int(len(wlist))
     f=nc.Dataset(wlist[0])    
-    stations = np.array(f.variables['buoyID'][bid]).astype('str')
+    stations = np.array(f.variables['ID'][:][bid]).astype('str')
     ensm = f.variables['ensemble_member'][:]
     latm = f.variables['lat'][0,:]; lonm = f.variables['lon'][0,:]
     indlat = int(np.floor(len(latm)/2)); indlon = int(np.floor(len(lonm)/2))
@@ -90,18 +92,16 @@ def read_data(wlist,bid,ltime1,ltime2,wvar):
 
         if i==0:
             ctime = np.zeros((len(wlist)),'double')*np.nan
-            ndbc = np.zeros((len(wlist),len(bid),len(indt)),'f')*np.nan
-            fshape = f.variables[wvar+"_gefs_hindcast"].shape
-            gefs_hindcast = np.zeros((len(wlist),len(bid),len(indt),fshape[2],fshape[3],fshape[4]),'f')*np.nan
+            fshape = f.variables[wvar+"_gefs_forecast"].shape
+            gefs_hindcast = np.zeros((len(wlist),len(bid),len(indt),fshape[2]),'f')*np.nan
             gefs_forecast = np.zeros((len(wlist),len(bid),len(indt),fshape[2],fshape[3],fshape[4]),'f')*np.nan
             gefs_forecast_p = np.zeros((len(wlist),len(bid),len(indt),fshape[2],fshape[3],fshape[4]),'f')*np.nan
             del fshape
 
         ctime[i] = np.double(f.variables['time'][0])
-        ndbc[i,:,:] = np.array(f.variables[wvar+"_ndbc"][bid,indt])
-        gefs_hindcast[i,:,:,:,:,:] = np.array(f.variables[wvar+"_gefs_hindcast"][bid,indt,:,:,:])
-        gefs_forecast[i,:,:,:,:,:] = np.array(f.variables[wvar+"_gefs_forecast"][bid,indt,:,:,:])
-        aux = np.array(f.variables[wvar+"_gefs_forecast"][bid,0,:,:,:])
+        gefs_hindcast[i,:,:,:] = np.array(f.variables[wvar+"_gefs_hindcast"][bid,:,:][:,indt,:])
+        gefs_forecast[i,:,:,:,:,:] = np.array(f.variables[wvar+"_gefs_forecast"][bid,:,:,:,:][:,indt,:,:,:])
+        aux = np.array(f.variables[wvar+"_gefs_forecast"][bid,:,:,:,:][:,0,:,:,:])
         for j in range(0,len(indt)):
             gefs_forecast_p[i,:,j,:,:,:] = aux
 
@@ -113,7 +113,7 @@ def read_data(wlist,bid,ltime1,ltime2,wvar):
     gefsdata = {'cdate': cdate,'ctime': ctime, 'stations': stations, 'lft': len(indt), 'ensm': ensm,
         'latm': latm, 'lonm': lonm, 'indlat': indlat, 'indlon': indlon, 
         'indlat': indlat, 'indlon': indlon, 'indt': indt,
-        'ndbc': ndbc, 'gefs_hindcast': gefs_hindcast,'gefs_forecast': gefs_forecast,'gefs_forecast_p': gefs_forecast_p}
+        'gefs_hindcast': gefs_hindcast,'gefs_forecast': gefs_forecast,'gefs_forecast_p': gefs_forecast_p}
 
     return gefsdata
 
