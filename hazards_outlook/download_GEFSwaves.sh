@@ -6,6 +6,7 @@
 # VERSION AND LAST UPDATE:
 #   v1.0  11/09/2022
 #   v1.1  04/01/2024
+#   v2.0  05/23/2025
 #
 # PURPOSE:
 #  Script to download NOAA Global Ensemble Forecast System (GEFS), Wave 
@@ -44,6 +45,9 @@
 #    get_gefsWaves.sh in WW3-Tools).
 #  04/01/2024: Ricardo M. Campos, download of .grib2 field outputs 
 #    without any post-processing.
+#  05/23/2025: Ricardo M. Campos, replace server https://ftpprd.ncep.noaa.gov
+#    with https://noaa-gefs-pds.s3.amazonaws.com
+#    the /data/nccf/com/gens/prod path must be removed in the new address
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
@@ -56,7 +60,8 @@ DIR="$1"
 cd $DIR
 
 # NOAA server address
-SERVER=https://ftpprd.ncep.noaa.gov/
+# SERVER=https://ftpprd.ncep.noaa.gov
+SERVER=https://noaa-gefs-pds.s3.amazonaws.com
 s1="global.0p25" # main grid
 
 # variable names to be downloaded. Wind speed and significant wave height.
@@ -148,10 +153,12 @@ for h in $fleads;do
             echo "  " >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR
             # main line where get_inv.pl and get_grib.pl are used to fech grib2 files
             if [ ${e} == 00 ]; then
-               $DIRS/get_inv.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIRS/get_grib.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
+               $DIRS/get_inv.pl $SERVER/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIRS/get_grib.pl $SERVER/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
+               wait $!
                test -f $DIRS/gefs.wave.t${HOUR}z.c${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1   
             else
-               $DIRS/get_inv.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIRS/get_grib.pl $SERVER/data/nccf/com/gens/prod/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
+               $DIRS/get_inv.pl $SERVER/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2.idx | egrep "($VARSGET)" | $DIRS/get_grib.pl $SERVER/gefs.$YEAR$MONTH$DAY/$HOUR/wave/gridded/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1 
+               wait $!
                test -f $DIRS/gefs.wave.t${HOUR}z.p${e}.${s1}.f"$(printf "%03.f" $h)".grib2 >> $DIRS/logGEFS_$YEAR$MONTH$DAY$HOUR 2>&1
             fi
             # test if downloaded file exists
