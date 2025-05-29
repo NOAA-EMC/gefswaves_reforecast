@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """
-buildfuzzydataset.py
+extract_GEFS.py
 
 VERSION AND LAST UPDATE:
  v1.0  09/10/2023
  v1.1  05/09/2024
  v1.2  04/03/2025
+ v1.3  05/28/2025
 
 PURPOSE:
  Python script to build a dataset with GEFS forecast and GEFS reanalysis (hindcasted 24-h slices),
@@ -17,10 +18,10 @@ PURPOSE:
 
 USAGE:
  This code is run for one forecast cycle only. A shell script can execute this script multiple times.
- python3 buildfuzzydataset.py 20220701
+ python3 extract_GEFS.py 2022070100
 
 OUTPUT:
- Netcdf file GEFS.PointExtract.YYYYMMDD.nc saved in the given outpath.
+ Netcdf file GEFS.PointExtract.YYYYMMDDHH.nc saved in the given outpath.
 
 DEPENDENCIES:
  See setup.py and the imports below.
@@ -30,6 +31,8 @@ AUTHOR and DATE:
  05/09/2024: Ricardo M. Campos. GDAS removed. Now reading post-processed netcdf file instead of .grib2 (much faster).
  04/03/2025: Ricardo M. Campos. NDBC buoy data removed. Observations and other sources of ground truth 
   can be included at a later stage.
+ 05/28/2025: Ricardo M. Campos. Code renamed from buildfuzzydataset.py to extract_GEFS.py. Hour (HH) included
+  to allow processing different forecast cycles (not only 00Z).
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
@@ -84,8 +87,8 @@ def read_gefs(date,mvar,path_gefs):
 def build_gefs_hindcast(date,mvar,path_gefs):
 
     # cycle time
-    ctime=np.array(np.arange(0,384+1,24)*3600.+timegm( strptime(date,'%Y%m%d') )).astype('double')
-    auxltime=np.array(np.arange(0,24,6)).astype('int'); auxltimef=np.array([0]).astype('int')
+    ctime=np.array(np.arange(0,384+1,12)*3600.+timegm( strptime(date,'%Y%m%d%H') )).astype('double')
+    auxltime=np.array(np.arange(0,12,6)).astype('int'); auxltimef=np.array([0]).astype('int')
 
     c=0; tt=0
     for ct in range(0,len(ctime)):
@@ -96,7 +99,7 @@ def build_gefs_hindcast(date,mvar,path_gefs):
             auxlt=auxltime
 
         for enm in range(0,nenm):
-            cdate=str(time.gmtime(ctime[ct])[0])+str(time.gmtime(ctime[ct])[1]).zfill(2)+str(time.gmtime(ctime[ct])[2]).zfill(2)
+            cdate=str(time.gmtime(ctime[ct])[0])+str(time.gmtime(ctime[ct])[1]).zfill(2)+str(time.gmtime(ctime[ct])[2]).zfill(2)+str(time.gmtime(ctime[ct])[3]).zfill(2)
             fname=path_gefs+"gefs.wave."+cdate+"."+str(int(enm)).zfill(2)+".global.0p25.nc"
             # print(" build_gefs_hindcast "+fname)
 
