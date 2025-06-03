@@ -29,7 +29,7 @@ matplotlib.rc('xtick', labelsize=sl); matplotlib.rc('ytick', labelsize=sl); matp
 
 if __name__ == "__main__":
 
-    fname = '/home/ricardo/work/noaa/analysis/Week2ProbForecast/3assessments/fuzzy_verification/points_sel.txt'
+    fname = 'points_sel_Pacific.txt'
     ds_points = pd.read_csv(fname,comment='#',delimiter=r"\s+")
 
     # ==== Plot point positions ====
@@ -43,9 +43,20 @@ if __name__ == "__main__":
     ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
     ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
     ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
+
     for i in range(0,len(ds_points)):
         bid=ds_points['ID'][i]; blat=float(ds_points['Lat'][i]); blon=float(ds_points['Lon'][i])
         ax.scatter(blon,blat,s=9, c='b', marker='o',transform=ccrs.PlateCarree(),zorder=3)
+
+    ind=np.array(ds_points[ds_points['ID'].str.startswith('4')].index).astype('int')
+    for i in range(0,len(ind)):
+        bid=ds_points['ID'][ind[i]]; blat=float(ds_points['Lat'][ind[i]]); blon=float(ds_points['Lon'][ind[i]])
+        ax.scatter(blon,blat,s=9, c='g', marker='o',transform=ccrs.PlateCarree(),zorder=3)
+
+    ind=np.array(ds_points[ds_points['ID'].str.startswith('5')].index).astype('int')
+    for i in range(0,len(ind)):
+        bid=ds_points['ID'][ind[i]]; blat=float(ds_points['Lat'][ind[i]]); blon=float(ds_points['Lon'][ind[i]])
+        ax.scatter(blon,blat,s=9, c='g', marker='o',transform=ccrs.PlateCarree(),zorder=3)
 
     plt.savefig('Point_Positions.png', dpi=300, facecolor='w', edgecolor='w',orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
     plt.close()
