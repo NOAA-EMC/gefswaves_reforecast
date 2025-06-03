@@ -56,6 +56,7 @@ for DAY in `seq 1 31`; do
       TE=$?
       if [ "$TE" -eq 1 ]; then
          echo " File ${arqn}.grib2 does not exist. Failed to download " 
+         exit 1
       else
          wgrib2 ${arqn}.grib2 -netcdf ${arqn}.saux.nc  2>&1
          wait $!
