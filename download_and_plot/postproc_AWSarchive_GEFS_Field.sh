@@ -53,6 +53,7 @@ for h in $fleads;do
      if [ ${TE} -eq 1 ]; then
        echo " File ${arqn}.grib2 does not exist. Download failed."
        echo " File ${arqn}.grib2 does not exist. Download failed." >> "${DIRS}/file_doesnt_extist.txt"
+       exit 1
      else
        wgrib2 ${arqn}.grib2 -netcdf ${arqn}.saux.nc 2>&1
        wait $!
