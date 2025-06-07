@@ -54,9 +54,20 @@ fleads="`seq -f "%03g" 0 6 384`"
 
 cd ${DIRW}
 for h in $fleads;do
-  echo " ======== GEFS Forecast, AWS archive: ${CTIME} 00Z  $h ========"
+  echo " ======== GEFS Forecast, AWS archive: ${CTIME} ${HCYCLE}Z $h ========"
   for e in $ensblm;do
     echo $e
+
+    FILE=$DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f$(printf "%03.f" $h).grib2
+    # Skip if file exists and is large enough
+    if [ -f "$FILE" ]; then
+      TAM=$(du -sb "$FILE" | awk '{ print $1 }')
+      if [ "$TAM" -ge 10000000 ]; then
+        echo "File $FILE already exists and is large enough. Skipping download."
+        continue
+      fi
+    fi
+
     # size TAM and tries TRIES will control the process
     TAM=0
     TRIES=1

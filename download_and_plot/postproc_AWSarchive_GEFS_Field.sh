@@ -27,8 +27,8 @@ module load wgrib2
 
 # date
 CTIME=${YEAR}`printf %2.2d $MONTH``printf %2.2d $DAY`
-DIRS="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS" # archive path
-DIRO="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf" # final netcdf4 output path
+DIRS="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/GEFSv12_00Z_Cycle" # archive path
+DIRO="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf/week2project/00Z_cycle" # final netcdf4 output path
 
 # cutoff decimals to reduce file size
 dp=2
@@ -47,40 +47,65 @@ echo " Post-Processing. Netcdf4 compression "${CTIME}
 
 for h in $fleads;do
   for e in $ensblm;do
-     arqn=$DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f"$(printf "%03.f" $h)"
-     test -f ${arqn}.grib2
-     TE=$?
-     if [ ${TE} -eq 1 ]; then
-       echo " File ${arqn}.grib2 does not exist. Download failed."
-       echo " File ${arqn}.grib2 does not exist. Download failed." >> "${DIRS}/file_doesnt_extist.txt"
-       exit 1
-     else
-       wgrib2 ${arqn}.grib2 -netcdf ${arqn}.saux.nc 2>&1
-       wait $!
-       cdo select,name='WIND_surface','HTSGW_surface','PERPW_surface' ${arqn}.saux.nc ${arqn}.saux2.nc
-       wait $!
-       ncks -4 -L 1 ${arqn}.saux2.nc ${arqn}.saux3.nc 2>&1
-       wait $!
-       ncks --ppc default=.$dp ${arqn}.saux3.nc ${arqn}.nc 2>&1
-       wait $!
-       ncatted -a _FillValue,,o,f,NaN ${arqn}.nc 2>&1
-       wait $!
-       rm -f ${arqn}.saux*
-       rm -f ${arqn}.*idx*
-       echo " File ${arqn} converted to netcdf and compressed with success. "
-       sleep 1
-     fi
+
+    FILE=$DIRO/gefs.wave.${CTIME}.${e}.global.0p25.nc
+    # Skip if file exists and is large enough
+    if [ -f "$FILE" ]; then
+      TAM=$(du -sb "$FILE" | awk '{ print $1 }')
+      if [ "$TAM" -ge 100000000 ]; then
+        echo "File $FILE already exists and is large enough. Skipping processing."
+        continue
+      else
+        rm -f ${FILE}
+      fi
+    fi
+
+    arqn=$DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f"$(printf "%03.f" $h)"
+    test -f ${arqn}.grib2
+    TE=$?
+    if [ ${TE} -eq 1 ]; then
+      echo " File ${arqn}.grib2 does not exist. Download failed."
+      echo " File ${arqn}.grib2 does not exist. Download failed." >> "${DIRS}/file_doesnt_extist.txt"
+      exit 1
+    else
+      wgrib2 ${arqn}.grib2 -netcdf ${arqn}.saux.nc 2>&1
+      wait $!
+      cdo select,name='WIND_surface','HTSGW_surface','PERPW_surface' ${arqn}.saux.nc ${arqn}.saux2.nc
+      wait $!
+      ncks -4 -L 1 ${arqn}.saux2.nc ${arqn}.saux3.nc 2>&1
+      wait $!
+      ncks --ppc default=.$dp ${arqn}.saux3.nc ${arqn}.nc 2>&1
+      wait $!
+      ncatted -a _FillValue,,o,f,NaN ${arqn}.nc 2>&1
+      wait $!
+      rm -f ${arqn}.saux*
+      rm -f ${arqn}.*idx*
+      echo " File ${arqn} converted to netcdf and compressed with success. "
+      sleep 1
+    fi
   done
 done
 
 # Merge all netcdf files lead time
 for e in $ensblm;do
+
+  FILE=$DIRO/gefs.wave.${CTIME}.${e}.global.0p25.nc
+  # Skip if file exists and is large enough
+  if [ -f "$FILE" ]; then
+    TAM=$(du -sb "$FILE" | awk '{ print $1 }')
+    if [ "$TAM" -ge 100000000 ]; then
+      echo "File $FILE already exists and is large enough. Skipping processing."
+      continue
+    fi
+  fi
+
   ncrcat $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f*.nc -O $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.nc 2>&1
   wait $!
   sleep 1
   mv $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.nc ${DIRO}
   rm -f $DIRW/gefs.wave.${CTIME}.${e}.global.0p25.f*.nc
   echo " All time steps of ensemble member ${e} have been merged. "
+
 done
 
 echo "Completed postproc_AWSarchive_GEFS_Field.sh "${CTIME}"  at "$(date +"%T")
