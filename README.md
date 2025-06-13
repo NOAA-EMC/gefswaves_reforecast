@@ -1,4 +1,4 @@
-# NOAA Wave Ensemble Reforecast
+# NOAA Wave Ensemble Reforecast, Week2 Probabilistic Forecast, and Validation
 
 AWS data storage noaa-nws-gefswaves-reforecast-pds
 
@@ -21,6 +21,11 @@ Each file refers to one forecast cycle with date (year,month,day) written in the
 
 Details on the development and validation of this product can be found in the publication: \
 Campos, R.M., Abdolali, A., Alves, J.H., Masarik, M., Meixner, J., Banihashemi, S., Mehra, A., Figurskey, D., Sienkiewicz, J., Lumpkin, R., 2024. Development and Validation of NOAA’s 20-year global wave ensemble reforecast. Weather & Forecasting. Under review.
+
+This repository also contains scripts for the Week 2 Probabilistic Wave Forecast:
+https://ocean.weather.gov/week2/
+And validation and Fuzzy Verification of the product. The methodology is explained in details at:
+https://journals.ametsoc.org/view/journals/wefo/aop/WAF-D-24-0154.1/WAF-D-24-0154.1.xml
 
 # Update Frequency:
 
