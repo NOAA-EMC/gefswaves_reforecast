@@ -27,14 +27,15 @@ module load wgrib2
 
 # date
 CTIME=${YEAR}`printf %2.2d $MONTH``printf %2.2d $DAY`
-DIRS="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/GEFSv12_00Z_Cycle" # archive path
-DIRO="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf/week2project/00Z_cycle" # final netcdf4 output path
+DIRS="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/GEFSv12_12Z_Cycle" # archive path
+DIRO="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf/week2project/12Z_cycle" # final netcdf4 output path
 
 # cutoff decimals to reduce file size
 dp=2
 
 DIRW="${DIRS}/GEFSv12Waves_${CTIME}"
 cd $DIRW
+rm -f *ncks* *tmp *.nc
 
 # hours of forecast lead time to be dowloaded
 fleads="`seq -f "%03g" 0 6 384`"
@@ -80,6 +81,7 @@ for h in $fleads;do
       wait $!
       rm -f ${arqn}.saux*
       rm -f ${arqn}.*idx*
+      rm -f *ncks* *tmp
       echo " File ${arqn} converted to netcdf and compressed with success. "
       sleep 1
     fi

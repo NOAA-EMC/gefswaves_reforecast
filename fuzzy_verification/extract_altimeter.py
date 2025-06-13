@@ -31,7 +31,7 @@ USAGE:
    3) Final date (YYYYMMDD)
    4) Delta time (temporal resolution), in hours
  Example (from linux terminal command line):
-   nohup python3 extract_altimeter_fpos.py points_sel.txt 20201001 20250101 6 >> nohup_extract_Altimeter.out 2>&1 &
+   nohup python3 extract_altimeter.py points_sel.txt 20201001 20250101 6 >> nohup_extract_Altimeter.out 2>&1 &
 
 OUTPUT:
  Netcdf file containing the collocated altimeter data into fixed lat/lons, plus 12 neighboring points.
