@@ -79,7 +79,6 @@ for h in $fleads; do
         sleep 30
       fi
 
-      # Download logic
       if [ "$e" == "00" ]; then
         wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 \
           "${SERVER}gefs.${CTIME}/${HCYCLE}/wave/gridded/gefs.wave.t${HCYCLE}z.c${e}.global.0p25.f$(printf "%03.f" $h).grib2" \
