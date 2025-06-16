@@ -64,7 +64,7 @@ pa=1
 DATE=$(date --date="-${pa} day" '+%Y%m%d')
 
 # Parameters
-wparam_wind="10u/10v/10fg/msl"
+wparam_wind="10u/10v/msl"
 latmin=-82.
 latmax=89.
 dp=2
@@ -84,7 +84,7 @@ for e in $ensblm; do
   # Skip if existing file is large enough
   if [[ -f "$FILE" ]]; then
     size=$(du -sb "$FILE" | awk '{print $1}')
-    if (( size >= 200000000 )); then
+    if (( size >= 260000000 )); then
       echo " $FILE exists and is large enough. Skipping."
       continue
     else

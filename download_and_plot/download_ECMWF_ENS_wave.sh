@@ -83,7 +83,7 @@ for e in $ensblm; do
   # Skip if existing file is large enough
   if [[ -f "$FILE" ]]; then
     size=$(du -sb "$FILE" | awk '{print $1}')
-    if (( size >= 150000000 )); then
+    if (( size >= 210000000 )); then
       echo " $FILE exists and is large enough. Skipping."
       continue
     else
