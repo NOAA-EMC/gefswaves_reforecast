@@ -67,6 +67,7 @@ DATE=$(date --date="-${pa} day" '+%Y%m%d')
 wparam_wind="10u/10v/msl"
 latmin=-82.
 latmax=89.
+# decimals/resolution for compression
 dp=2
 
 # Lead times: 3h to 144h, then 6h to 360h
