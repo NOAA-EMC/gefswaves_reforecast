@@ -65,6 +65,7 @@ DATE=$(date --date="-${pa} day" '+%Y%m%d')
 
 # Parameters
 wparam_wind="10u/10v/msl"
+# restricting domain
 latmin=-82.
 latmax=89.
 # decimals/resolution for compression
