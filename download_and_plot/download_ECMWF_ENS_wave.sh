@@ -64,8 +64,10 @@ DATE=$(date --date="-${pa} day" '+%Y%m%d')
 
 # Parameters
 wparam_wave="swh/mwd/pp1d/mwp"
+# restricting domain
 latmin=-82.
 latmax=89.
+# decimals/resolution for compression
 dp=2
 
 # Lead times: 3h to 144h, then 6h to 360h

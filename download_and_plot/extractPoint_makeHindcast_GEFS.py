@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-extractPoint_makeHindcast.py
+extractPoint_makeHindcast_GEFS.py
 
 VERSION AND LAST UPDATE:
  v1.0  08/26/2023
@@ -23,7 +23,7 @@ USAGE:
  The variables outpath, gefs_path, buoypfile below need to be edited.
  Two input arguments: Year Month
  Example (from linux terminal command line):
-  nohup python3 extractPoint_makeHindcast.py 2010 1 >> nohup_extractPoint_makeHindcast.out 2>&1 &
+  nohup python3 extractPoint_makeHindcast_GEFS.py 2010 1 >> nohup_extractPoint_makeHindcast.out 2>&1 &
  Or you can submit a job to run it (Orion supercomputer), using jextractPoint_makeHindcast.sh
  Multiple jobs can be submitted using jobmanager.sh
 
@@ -62,15 +62,15 @@ fnetcdf="NETCDF4"
 
 # fixed variables
 # output path where the final netcdf file will be saved.
-outpath="/work/noaa/marine/ricardo.campos/work/analysis/1preproc/extrai_point_from_grib/"
+outpath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/events/"
 # model path where the ww3 field output is saved.
-gefs_path="/work/noaa/marine/ricardo.campos/work/analysis/GEFSv12/"
+gefs_path="/work/noaa/marine/ricardo.campos/data/archiveOPruns/GEFSv12Waves_AWS/netcdf/week2project/"
 # ensemble members
-ensm=['c00','p01','p02','p03','p04']
+ensm=np.array([f"{i:02d}" for i in range(31)])
 # variable names (exactly as written in the ww3 field output)
-lvars=['swh','u','v','mwp','perpw','mpww','mwd','dirpw','shww','wvdir']
+lvars=['HTSGW_surface','PERPW_surface','WIND_surface']
 # position (lon lat) and buoy ID, saved in a text file. Longitude from -180 to 180.
-buoypfile="/work/noaa/marine/ricardo.campos/work/analysis/1preproc/extrai_point_from_grib/bstations_GEFSv12WW3grid.txt"
+buoypfile="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/events/bstations_GEFSv12WW3grid.txt"
 # Example of one line
 # -160.794  53.969  46075
 
@@ -84,14 +84,13 @@ month=int(sys.argv[2])
 # Calculate the next month
 next_month_date = datetime(int(year),int(month), 1) + timedelta(days=31)
 # time resolution
-indl=int(24/tres)
+indl=int(12/tres)
 # Time intervall and array of reference
 firstdate=repr(year)+str(month).zfill(2)+'01'; lastdate=repr(next_month_date.year)+str(next_month_date.month).zfill(2)+'01'
 # time array
 ftime=np.array(np.arange(timegm( strptime(firstdate, '%Y%m%d') ),timegm( strptime(lastdate, '%Y%m%d') )+1,tres*3600.)).astype('double')
-ftime=ftime[1::]
 # cycle array. One cycle per day. Edit here if you have more cycles per day.
-ctime=np.array(np.arange(timegm( strptime(firstdate, '%Y%m%d') ),timegm( strptime(lastdate, '%Y%m%d') ),24*3600.)).astype('double')
+ctime=np.array(np.arange(timegm( strptime(firstdate, '%Y%m%d') ),timegm( strptime(lastdate, '%Y%m%d') ),12*3600.)).astype('double')
 
 # READ BUOY POSITIONS
 bpos = pd.read_csv(buoypfile, delim_whitespace=True)
@@ -104,9 +103,9 @@ c=0
 for j in range(0,len(ensm)):
     t=0
     for i in range(0,len(ctime)):
-        fname=gefs_path+"gefs.wave."+repr(time.gmtime(ctime[i])[0])+str(time.gmtime(ctime[i])[1]).zfill(2)+str(time.gmtime(ctime[i])[2]).zfill(2)+"."+ensm[j]+".global.0p25.grib2"
+        fname=gefs_path+"gefs.wave."+repr(time.gmtime(ctime[i])[0])+str(time.gmtime(ctime[i])[1]).zfill(2)+str(time.gmtime(ctime[i])[2]).zfill(2)+str(time.gmtime(ctime[i])[3]).zfill(2)+"."+ensm[j]+".global.0p25.nc"
         try:
-            f = xr.open_dataset(fname, engine='cfgrib')
+            f = xr.open_dataset(fname)
 
             if c==0:
                 # Origin
@@ -121,7 +120,7 @@ for j in range(0,len(ensm)):
 
             # extract points
             for v in range(0,len(lvars)):
-                winterp[v,:,j,t:t+indl] = np.array(f[lvars[v]].isel(step=np.arange(0,indl)).values[:,indlat,indlon]).T
+                winterp[v,:,j,t:t+indl] = np.array(f[lvars[v]].values[0:indl,:,:][:,indlat,indlon]).T
 
         except:
             print(" Error: Cannot open and read "+fname)
@@ -133,8 +132,8 @@ for j in range(0,len(ensm)):
 
 
 # Save netcdf output file
-ncfile = nc.Dataset(outpath+"GEFS.PointExtract.Day1."+firstdate+"to"+lastdate+".nc", "w", format=fnetcdf)
-ncfile.history="Wave parameters extracted for buoy points, using bstations_GEFSv12WW3grid.txt. Forecast lead time 0-24h."
+ncfile = nc.Dataset(outpath+"GEFS.PointExtract."+firstdate+"to"+lastdate+".nc", "w", format=fnetcdf)
+ncfile.history="Wave parameters extracted for buoy points, using bstations_GEFSv12WW3grid.txt. Forecast lead time 0-11h, from 00Z and 12Z cycles."
 # create  dimensions. 2 Dimensions
 ncfile.createDimension('variabels',len(lvars))
 ncfile.createDimension('buoy_points', len(bid))
@@ -142,17 +141,17 @@ ncfile.createDimension('ensemble_member', len(ensm))
 ncfile.createDimension('time', len(ftime) )
 # create variables.
 vt = ncfile.createVariable('time',np.dtype('float64').char,('time'))
-vbid = ncfile.createVariable('buoyID',dtype('a25'),('buoy_points'))	
+vbid = ncfile.createVariable('buoyID',np.dtype('a25'),('buoy_points'))	
 vlat = ncfile.createVariable('latitude',np.dtype('float32').char,('buoy_points'))
 vlon = ncfile.createVariable('longitude',np.dtype('float32').char,('buoy_points'))
-vensm = ncfile.createVariable('ensemble_member',dtype('a25'),('ensemble_member'))
-vlvars = ncfile.createVariable('variables_names',dtype('a25'),('variabels'))
+vensm = ncfile.createVariable('ensemble_member',np.dtype('a25'),('ensemble_member'))
+vlvars = ncfile.createVariable('variables_names',np.dtype('a25'),('variabels'))
 # results
 vwinterp = ncfile.createVariable('gefs_ww3',np.dtype('float32').char,('variabels','buoy_points','ensemble_member','time'))
 # Assign units
 vt.units = 'seconds since 1970-01-01T00:00:00+00:00'
 # Allocate Data
-vt[:]=ftime[:]; vbid[:]=bid[:]; vlat[:]=latb[:]; vlon[:]=lonb[:]
+vt[:]=ftime[:]; vbid[:]=np.array(bid[:]).astype('str'); vlat[:]=latb[:]; vlon[:]=lonb[:]
 vensm[:]=np.array(ensm[:]); vlvars[:]=np.array(lvars[:])
 vwinterp[:,:,:,:]=winterp[:,:,:,:]
 ncfile.close()
