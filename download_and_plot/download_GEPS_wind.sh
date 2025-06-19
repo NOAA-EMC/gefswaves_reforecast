@@ -1,13 +1,13 @@
 #!/bin/bash
 
 ########################################################################
-# download_GEWPS_wave.sh
+# download_GEPS_wind.sh
 #
 # VERSION AND LAST UPDATE:
-#   v1.0  06/18/2025
+#   v1.0  06/20/2025
 #
 # PURPOSE:
-#  Script to download Environment Canada's wave ensemble forecast
+#  Script to download Environment Canada's wind ensemble forecast
 #   https://dd.meteo.gc.ca/
 #   https://weather.gc.ca/ensemble/index_e.html
 #   https://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_doc/grib2_table4-2-10-0.shtml
@@ -15,7 +15,7 @@
 # USAGE:
 #  Two input arguments must be entered: cycle time (0 or 12) and the output path.
 #  Example:
-#    bash download_GEWPS_wave.sh 00 /home/ricardo/data/EnvCanada/wave
+#    bash download_GEPS_wind.sh 00 /home/ricardo/data/EnvCanada/wind
 #  it will download the current day (00Z cycle)
 #
 # OUTPUT:
@@ -25,7 +25,7 @@
 #  wget, CDO, NCO
 #
 # AUTHOR and DATE:
-#  06/18/2025: Ricardo M. Campos, first version 
+#  06/20/2025: Ricardo M. Campos, first version 
 #
 # PERSON OF CONTACT:
 #  Ricardo M. Campos: ricardo.campos@noaa.gov
@@ -42,7 +42,7 @@ checkfile() {
     local TAM
     TAM=$(stat -c%s "$FILE" 2>/dev/null)
 
-    if [[ "$TAM" -ge 230000000 ]]; then
+    if [[ "$TAM" -ge 10000000 ]]; then
       echo "0"  # File exists and is big enough
       return
     fi
@@ -59,12 +59,12 @@ WDIR="$2"
 # DATE=$(date '+%Y%m%d')
 pa=1
 DATE=$(date --date="-${pa} day" '+%Y%m%d')
-exec > >(tee -a "$WDIR/download_GEWPS_wave_${DATE}${CHOUR}.log") 2>&1
+exec > >(tee -a "$WDIR/download_GEPS_wind_${DATE}${CHOUR}.log") 2>&1
 
-# Wave variables: Hs, Dp, Tp, Tm
-WVARS=("HTSGW" "PWAVEDIR" "PWPER" "MZWPER")
+# Wind variables: Hs, Dp, Tp, Tm
+WVARS=("UGRD_TGL_10m" "VGRD_TGL_10m" "PRMSL_MSL_0")
 # corresponding variable names after netcdf conversion
-wvarname=("swh" "param46.0.10" "pp1d" "mp2")
+wvarname=("10u" "10v" "prmsl")
 
 # Ensemble members
 ensbl=($(seq 1 21))
@@ -95,19 +95,19 @@ for h in $fleads;do
     wv="${WVARS[$i]}"
     wvarn="${wvarname[$i]}"
 
-    echo " ======== GEWPS Forecast: ${DATE} ${CHOUR}Z $h ${wv} ========"
+    echo " ======== GEPS Forecast: ${DATE} ${CHOUR}Z $h ${wv} ========"
 
-    arqn="gewps.wave.${DATE}T${CHOUR}Z_"${h}"H_${wv}"
+    arqn="geps.wind.${DATE}T${CHOUR}Z_"${h}"H_${wvarn}"
 
-    FILE="$WDIR/GEWPS_wave_${DATE}${CHOUR}.00.nc"
+    FILE="$WDIR/GEPS_wind_${DATE}${CHOUR}.00.nc"
     cfile=$(checkfile "$FILE")
     if [ "$cfile" -eq 0 ]; then
       echo "File $FILE already exists and is large enough. Skipping download 1."
       continue
     fi
 
-    wfile="${DATE}T${CHOUR}Z_MSC_GEWPS_${wv}_Sfc_LatLon0.25_PT"${h}"H.grib2"  
-    wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 "${SERVER}/${DATE}/WXO-DD/model_gewps/25km/${CHOUR}/${wfile}" -O "$WDIR/work/${arqn}.grib2"
+    wfile="CMC_geps-raw_${wv}_latlon0p5x0p5_${DATE}${CHOUR}_P"${h}"_allmbrs.grib2"
+    wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 "${SERVER}/${DATE}/WXO-DD/ensemble/geps/grib2/raw/${CHOUR}/"${h}"/${wfile}" -O "$WDIR/work/${arqn}.grib2"
     echo "wget $WDIR/work/${arqn}.grib2"
 
     test -f "$WDIR/work/${arqn}.grib2"
@@ -123,12 +123,11 @@ for h in $fleads;do
 
         if [ "$j" -eq 0 ]; then
           ncks -v ${wvarn} ${arqn}.saux.nc -o ${arqn}_${ne}.saux.nc
-          cdo sellonlatbox,-180,180,-90,90 ${arqn}_${ne}.saux.nc ${arqn}_${ne}.saux1.nc
-          ncrename -v ${wvarn},${wv} ${arqn}_${ne}.saux1.nc ${arqn}_${ne}.nc
+          cdo sellonlatbox,-180,180,-90,90 ${arqn}_${ne}.saux.nc ${arqn}_${ne}.nc
         else
           ncks -v "${wvarn}_$e" ${arqn}.saux.nc -o ${arqn}_${ne}.saux.nc
           cdo sellonlatbox,-180,180,-90,90 ${arqn}_${ne}.saux.nc ${arqn}_${ne}.saux1.nc
-          ncrename -v ${wvarn}_${e},${wv} ${arqn}_${ne}.saux1.nc ${arqn}_${ne}.nc
+          ncrename -v ${wvarn}_${e},${wvarn} ${arqn}_${ne}.saux1.nc ${arqn}_${ne}.nc
         fi
 
         rm -f ${arqn}_${ne}.saux*.nc
@@ -147,7 +146,7 @@ for h in $fleads;do
   for i in "${!ensbl[@]}"; do
     ne="${ensblm[$i]}"
 
-    FILE="$WDIR/GEWPS_wave_${DATE}${CHOUR}.${ne}.nc"
+    FILE="$WDIR/GEPS_wind_${DATE}${CHOUR}.${ne}.nc"
     cfile=$(checkfile "$FILE")
     if [ "$cfile" -eq 0 ]; then
       echo "File $FILE already exists and is large enough. Skipping download 2."
@@ -156,12 +155,13 @@ for h in $fleads;do
 
     for j in "${!WVARS[@]}"; do
       wv="${WVARS[$j]}"
+      wvarn="${wvarname[$j]}"
       if [ "$j" -eq 0 ]; then
-        iname="gewps.wave.${DATE}T${CHOUR}Z_${h}H_${ne}.nc"
-        mv "gewps.wave.${DATE}T${CHOUR}Z_${h}H_${wv}_${ne}.nc" "$iname"
+        iname="geps.wind.${DATE}T${CHOUR}Z_${h}H_${ne}.nc"
+        mv "geps.wind.${DATE}T${CHOUR}Z_${h}H_${wvarn}_${ne}.nc" "$iname"
       else
-        src="gewps.wave.${DATE}T${CHOUR}Z_${h}H_${wv}_${ne}.nc"
-        ncks -A -v $wv "$src" "$iname"
+        src="geps.wind.${DATE}T${CHOUR}Z_${h}H_${wvarn}_${ne}.nc"
+        ncks -A -v $wvarn "$src" "$iname"
         rm -f $src
       fi
     done
@@ -175,16 +175,16 @@ for i in "${!ensbl[@]}"; do
 
   ne="${ensblm[$i]}"
 
-  FILE="$WDIR/GEWPS_wave_${DATE}${CHOUR}.${ne}.nc"
+  FILE="$WDIR/GEPS_wind_${DATE}${CHOUR}.${ne}.nc"
   cfile=$(checkfile "$FILE")
   if [ "$cfile" -eq 0 ]; then
     echo "File $FILE already exists and is large enough. Skipping download 3."
     continue
   fi
 
-  arqn="GEWPS_wave_"${DATE}${CHOUR}.${ne}
-  ncrcat gewps.wave.${DATE}T${CHOUR}Z_*H_${ne}.nc ${arqn}.saux.nc
-  rm -f gewps.wave.${DATE}T${CHOUR}Z_*H_${ne}.nc
+  arqn="GEPS_wind_"${DATE}${CHOUR}.${ne}
+  ncrcat geps.wind.${DATE}T${CHOUR}Z_*H_${ne}.nc ${arqn}.saux.nc
+  rm -f geps.wind.${DATE}T${CHOUR}Z_*H_${ne}.nc
 
   ncks -4 -L 1 -d lat,${latmin},${latmax} ${arqn}".saux.nc" ${arqn}".saux1.nc"
   ncks --ppc default=.$dp ${arqn}".saux1.nc" "${arqn}.nc"
@@ -201,5 +201,5 @@ for i in "${!ensbl[@]}"; do
 done
 
 echo " "
-echo " Done download_GEWPS_wave.sh ${DATE} ${CHOUR}Z "
+echo " Done download_GEPS_wind.sh ${DATE} ${CHOUR}Z "
 
