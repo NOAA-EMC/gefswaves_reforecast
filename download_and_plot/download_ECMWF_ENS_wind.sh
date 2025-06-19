@@ -40,13 +40,18 @@ CHOUR="$1"
 CHOUR=$(printf "%02.f" $CHOUR)
 DIR="$2"
 cd "$DIR"
+if [ ! -d "$DIR/work_${DATE}${CHOUR}" ]; then
+  mkdir "$DIR/work_${DATE}${CHOUR}"
+fi
+cd "$DIR/work_${DATE}${CHOUR}"
+
 source /home/ricardo/work/python/anaconda3/setanaconda3.sh
 
 # Function to convert and compress GRIB2 to NetCDF
 function ccompress() {
   local arqn=$1
   local DIR=$2
-  cd "$DIR"
+  cd "$DIR/work_${DATE}${CHOUR}"
 
   cdo -f nc4 copy "${arqn}.grib2" "${arqn}.saux1.nc"
   ncks -4 -L 1 -d lat,${latmin},${latmax} "${arqn}.saux1.nc" "${arqn}.saux2.nc"
@@ -130,6 +135,14 @@ EOF
   python3 "${sname}"
 
   ccompress "${arqn}" "${DIR}"
-  chmod 775 "$FILE"
+  chmod 775 "${arqn}.nc"
+  mv "${arqn}.nc" ${DIR}
 done
+
+sleep 1
+cd $DIR
+rm -rf "work_${DATE}${CHOUR}"
+
+echo " "
+echo " Done download_ECMWF_ENS_wind.sh ${DATE} ${CHOUR}Z "
 

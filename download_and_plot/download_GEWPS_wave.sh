@@ -71,10 +71,10 @@ ensbl=($(seq 1 21))
 ensblm=($(seq -f "%02g" 0 1 20))
 
 cd $WDIR
-if [ ! -d "$WDIR/work" ]; then
-  mkdir "$WDIR/work"
+if [ ! -d "$WDIR/work_${DATE}${CHOUR}" ]; then
+  mkdir "$WDIR/work_${DATE}${CHOUR}"
 fi
-cd "$WDIR/work"
+cd "$WDIR/work_${DATE}${CHOUR}"
 
 # EnvCanada server address
 SERVER=https://dd.meteo.gc.ca
@@ -107,10 +107,10 @@ for h in $fleads;do
     fi
 
     wfile="${DATE}T${CHOUR}Z_MSC_GEWPS_${wv}_Sfc_LatLon0.25_PT"${h}"H.grib2"  
-    wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 "${SERVER}/${DATE}/WXO-DD/model_gewps/25km/${CHOUR}/${wfile}" -O "$WDIR/work/${arqn}.grib2"
-    echo "wget $WDIR/work/${arqn}.grib2"
+    wget -l1 -H -t1 -nd -N -np -erobots=off --tries=3 "${SERVER}/${DATE}/WXO-DD/model_gewps/25km/${CHOUR}/${wfile}" -O "$WDIR/work_${DATE}${CHOUR}/${arqn}.grib2"
+    echo "wget $WDIR/work_${DATE}${CHOUR}/${arqn}.grib2"
 
-    test -f "$WDIR/work/${arqn}.grib2"
+    test -f "$WDIR/work_${DATE}${CHOUR}/${arqn}.grib2"
     TE=$?
     if [ ${TE} -eq 0 ]; then
 
@@ -199,6 +199,10 @@ for i in "${!ensbl[@]}"; do
   sleep 1
 
 done
+
+sleep 1
+cd $WDIR
+rm -rf "work_${DATE}${CHOUR}"
 
 echo " "
 echo " Done download_GEWPS_wave.sh ${DATE} ${CHOUR}Z "
