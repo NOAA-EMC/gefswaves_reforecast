@@ -39,6 +39,13 @@ set -euo pipefail
 CHOUR="$1"
 CHOUR=$(printf "%02.f" $CHOUR)
 DIR="$2"
+
+# Forecast date
+# DATE=$(date '+%Y%m%d')
+pa=1
+DATE=$(date --date="-${pa} day" '+%Y%m%d')
+exec > >(tee -a "$DIR/download_ECMWF_ENS_wave_${DATE}${CHOUR}.log") 2>&1
+
 cd "$DIR"
 if [ ! -d "$DIR/work_${DATE}${CHOUR}" ]; then
   mkdir "$DIR/work_${DATE}${CHOUR}"
@@ -62,12 +69,7 @@ function ccompress() {
   echo "File ${arqn} converted to NetCDF and compressed."
 }
 
-# Forecast date
-# DATE=$(date '+%Y%m%d')
-pa=1
-DATE=$(date --date="-${pa} day" '+%Y%m%d')
-
-# Parameters
+# Variables
 wparam_wave="swh/mwd/pp1d/mwp"
 # restricting domain
 latmin=-82.
