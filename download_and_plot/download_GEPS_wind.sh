@@ -34,6 +34,13 @@
 
 set -euo pipefail
 
+# When working on the cluster
+# export USER_IS_ROOT=0
+# export MODULEPATH=/etc/scl/modulefiles:/apps/lmod/lmod/modulefiles/Core:/apps/modules/modulefiles/Linux:/apps/modules/modulefiles
+# source /apps/lmod/lmod/init/bash
+# module load cdo
+# module load nco
+
 # Function to check if file has been previously downloaded
 checkfile() {
   local FILE="$1"

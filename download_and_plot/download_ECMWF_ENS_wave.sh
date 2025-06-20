@@ -35,6 +35,13 @@
 
 set -euo pipefail
 
+# When working on the cluster
+# export USER_IS_ROOT=0
+# export MODULEPATH=/etc/scl/modulefiles:/apps/lmod/lmod/modulefiles/Core:/apps/modules/modulefiles/Linux:/apps/modules/modulefiles
+# source /apps/lmod/lmod/init/bash
+# module load cdo
+# module load nco
+
 # Directory, cycle time, and python environment setup
 CHOUR="$1"
 CHOUR=$(printf "%02.f" $CHOUR)
