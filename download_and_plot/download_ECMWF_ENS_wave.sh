@@ -39,14 +39,26 @@ set -euo pipefail
 CHOUR="$1"
 CHOUR=$(printf "%02.f" $CHOUR)
 DIR="$2"
+
+# Forecast date
+# DATE=$(date '+%Y%m%d')
+pa=1
+DATE=$(date --date="-${pa} day" '+%Y%m%d')
+exec > >(tee -a "$DIR/download_ECMWF_ENS_wave_${DATE}${CHOUR}.log") 2>&1
+
 cd "$DIR"
+if [ ! -d "$DIR/work_${DATE}${CHOUR}" ]; then
+  mkdir "$DIR/work_${DATE}${CHOUR}"
+fi
+cd "$DIR/work_${DATE}${CHOUR}"
+
 source /home/ricardo/work/python/anaconda3/setanaconda3.sh
 
 # Function to convert and compress GRIB2 to NetCDF
 function ccompress() {
   local arqn=$1
   local DIR=$2
-  cd "$DIR"
+  cd "$DIR/work_${DATE}${CHOUR}"
 
   cdo -f nc4 copy "${arqn}.grib2" "${arqn}.saux1.nc"
   ncks -4 -L 1 -d lat,${latmin},${latmax} "${arqn}.saux1.nc" "${arqn}.saux2.nc"
@@ -57,12 +69,7 @@ function ccompress() {
   echo "File ${arqn} converted to NetCDF and compressed."
 }
 
-# Forecast date
-# DATE=$(date '+%Y%m%d')
-pa=1
-DATE=$(date --date="-${pa} day" '+%Y%m%d')
-
-# Parameters
+# Variables
 wparam_wave="swh/mwd/pp1d/mwp"
 # restricting domain
 latmin=-82.
@@ -129,6 +136,14 @@ EOF
   python3 "${sname}"
 
   ccompress "${arqn}" "${DIR}"
-  chmod 775 "$FILE"
+  chmod 775 "${arqn}.nc"
+  mv "${arqn}.nc" ${DIR}
 done
+
+sleep 1
+cd $DIR
+rm -rf "work_${DATE}${CHOUR}"
+
+echo " "
+echo " Done download_ECMWF_ENS_wave.sh ${DATE} ${CHOUR}Z "
 
