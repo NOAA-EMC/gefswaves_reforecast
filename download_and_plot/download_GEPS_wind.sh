@@ -42,7 +42,7 @@ checkfile() {
     local TAM
     TAM=$(stat -c%s "$FILE" 2>/dev/null)
 
-    if [[ "$TAM" -ge 10000000 ]]; then
+    if [[ "$TAM" -ge 85000000 ]]; then
       echo "0"  # File exists and is big enough
       return
     fi

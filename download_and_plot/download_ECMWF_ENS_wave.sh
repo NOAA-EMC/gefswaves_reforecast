@@ -52,6 +52,7 @@ if [ ! -d "$DIR/work_${DATE}${CHOUR}" ]; then
 fi
 cd "$DIR/work_${DATE}${CHOUR}"
 
+# Python environment (edit here)
 source /home/ricardo/work/python/anaconda3/setanaconda3.sh
 
 # Function to convert and compress GRIB2 to NetCDF
