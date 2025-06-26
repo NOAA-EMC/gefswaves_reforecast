@@ -75,9 +75,9 @@ if __name__ == "__main__":
     ftag=opath+"/Validation_"+wvar+"_"
 
     # Cluster data, altogether: yes (1) or no (0)
-    cpoints = 0
+    cluster_points = 0
 
-    # Bias correction of ground truth
+    # Bias correction of ground truth (approximation based on previous analyses and validations)
     qmm_slope = 1.05
     qmm_intercept = 0. 
 
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     llonm = len(gdata['lonm'])
 
     # Reshape
-    if cpoints == 0:
+    if cluster_points == 0:
         gtloop=int(lct*lbid)
         gefs_hindcast = gdata['gefs_hindcast'].reshape(gtloop,lft,lensm)
         gefs_forecast = gdata['gefs_forecast'].reshape(gtloop,lft,lensm,llatm,llonm)
