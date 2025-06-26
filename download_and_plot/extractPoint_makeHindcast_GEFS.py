@@ -135,7 +135,7 @@ for j in range(0,len(ensm)):
 ncfile = nc.Dataset(outpath+"GEFS.PointExtract."+firstdate+"to"+lastdate+".nc", "w", format=fnetcdf)
 ncfile.history="Wave parameters extracted for buoy points, using bstations_GEFSv12WW3grid.txt. Forecast lead time 0-11h, from 00Z and 12Z cycles."
 # create  dimensions. 2 Dimensions
-ncfile.createDimension('variabels',len(lvars))
+ncfile.createDimension('variables',len(lvars))
 ncfile.createDimension('buoy_points', len(bid))
 ncfile.createDimension('ensemble_member', len(ensm))
 ncfile.createDimension('time', len(ftime) )
@@ -145,9 +145,9 @@ vbid = ncfile.createVariable('buoyID',np.dtype('a25'),('buoy_points'))
 vlat = ncfile.createVariable('latitude',np.dtype('float32').char,('buoy_points'))
 vlon = ncfile.createVariable('longitude',np.dtype('float32').char,('buoy_points'))
 vensm = ncfile.createVariable('ensemble_member',np.dtype('a25'),('ensemble_member'))
-vlvars = ncfile.createVariable('variables_names',np.dtype('a25'),('variabels'))
+vlvars = ncfile.createVariable('variables_names',np.dtype('a25'),('variables'))
 # results
-vwinterp = ncfile.createVariable('gefs_ww3',np.dtype('float32').char,('variabels','buoy_points','ensemble_member','time'))
+vwinterp = ncfile.createVariable('gefs_ww3',np.dtype('float32').char,('variables','buoy_points','ensemble_member','time'))
 # Assign units
 vt.units = 'seconds since 1970-01-01T00:00:00+00:00'
 # Allocate Data
