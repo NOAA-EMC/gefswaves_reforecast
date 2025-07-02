@@ -38,7 +38,7 @@ fnetcdf="NETCDF4"
 if __name__ == "__main__":
 
     # Altimeter data, from extract_altimeter.py
-    fname='/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/data/Atlantic/Altimeter.PointExtract.Atlantic_20201001to20250101.nc'
+    fname='/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/data/Pacific/Altimeter.PointExtract.Pacific_20201001to20250101.nc'
     # Paths
     ndbcp="/work/noaa/marine/ricardo.campos/data/buoys/NDBC/ncformat/wparam"
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
     print(' ')
     # Save netcdf output file 
-    ncfile = nc.Dataset("Altimeter.Buoy.PointExtract_20201001to20250101.nc", "w", format=fnetcdf)
+    ncfile = nc.Dataset("Altimeter.Buoy.PointExtract.Pacific_20201001to20250101.nc", "w", format=fnetcdf)
     ncfile.history="AODN Altimeter data extracted for fixed point outputs, and NDBC buoy data for those points (when available)"
     # create  dimensions
     ncfile.createDimension('points', pid.shape[0] )

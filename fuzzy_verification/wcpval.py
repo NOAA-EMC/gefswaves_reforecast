@@ -47,6 +47,7 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib.dates import DateFormatter
 import netCDF4 as nc
+import xarray as xr
 import numpy as np
 import pandas as pd
 import pickle
@@ -92,12 +93,14 @@ def read_data(wlist,bid,ltime1,ltime2,wvar):
 
         if i==0:
             ctime = np.zeros((len(wlist)),'double')*np.nan
+            ftime = np.zeros((len(wlist),len(indt)),'double')*np.nan
             fshape = f.variables[wvar+"_gefs_forecast"].shape
             gefs_hindcast = np.zeros((len(wlist),len(bid),len(indt),fshape[2]),'f')*np.nan
             gefs_forecast = np.zeros((len(wlist),len(bid),len(indt),fshape[2],fshape[3],fshape[4]),'f')*np.nan
             gefs_forecast_p = np.zeros((len(wlist),len(bid),len(indt),fshape[2],fshape[3],fshape[4]),'f')*np.nan
             del fshape
 
+        ftime[i,:] = np.array(f.variables['time'][indt]).astype('double')
         ctime[i] = np.double(f.variables['time'][0])
         gefs_hindcast[i,:,:,:] = np.array(f.variables[wvar+"_gefs_hindcast"][bid,:,:][:,indt,:])
         gefs_forecast[i,:,:,:,:,:] = np.array(f.variables[wvar+"_gefs_forecast"][bid,:,:,:,:][:,indt,:,:,:])
@@ -110,12 +113,28 @@ def read_data(wlist,bid,ltime1,ltime2,wvar):
 
     cdate = [datetime.utcfromtimestamp(ts) for ts in ctime]
 
-    gefsdata = {'cdate': cdate,'ctime': ctime, 'stations': stations, 'lft': len(indt), 'ensm': ensm,
+    gefsdata = {'cdate': cdate,'ctime': ctime,'ftime': ftime, 'stations': stations, 'lft': len(indt), 'ensm': ensm,
         'latm': latm, 'lonm': lonm, 'indlat': indlat, 'indlon': indlon, 
         'indlat': indlat, 'indlon': indlon, 'indt': indt,
         'gefs_hindcast': gefs_hindcast,'gefs_forecast': gefs_forecast,'gefs_forecast_p': gefs_forecast_p}
 
     return gefsdata
+
+# READ OBSERVATIONS 
+def read_obs(fname,wvar,altselm):
+    '''
+    wvar: hs u10
+    altselm: mean, p80, p90, p95, p95, max
+    '''
+    ds = xr.open_dataset(fname)
+    f = nc.Dataset(fname)
+
+    result = {'bdate': ds.time.values,'btime': f.variables['time'][:], 'bid': f.variables['ID'][:],
+        'lat': f.variables['lat'][:], 'lon': f.variables['lon'][:], 
+        'mlat': f.variables['mlat'][:], 'mlon': f.variables['mlon'][:], 
+        'buoy': f.variables["buoy_"+wvar][:], 'alt': f.variables["alt_"+wvar+"_"+altselm][:]}
+
+    return result
 
 
 # Function to check np.sort using multidimensional array

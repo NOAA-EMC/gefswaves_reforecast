@@ -9,6 +9,7 @@ VERSION AND LAST UPDATE:
  v1.1  05/09/2024
  v1.2  04/03/2025
  v1.3  05/28/2025
+ v1.4  06/27/2025
 
 PURPOSE:
  Python script to build a dataset with GEFS forecast and GEFS reanalysis (hindcasted 24-h slices),
@@ -33,6 +34,7 @@ AUTHOR and DATE:
   can be included at a later stage.
  05/28/2025: Ricardo M. Campos. Code renamed from buildfuzzydataset.py to extract_GEFS.py. Hour (HH) included
   to allow processing different forecast cycles (not only 00Z).
+ 06/27/2025: Ricardo M. Campos. Preserving neighboring points in the hindcast array, same as the forecast.
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
@@ -172,13 +174,13 @@ if __name__ == "__main__":
 
             if i==0:
                 fgefs_forecast = np.array([gefs_forecast[:,:,:,indlat,:][:,:,:,:,indlon]])
-                fgefs_hindcast = np.array([gefs_hindcast[:,:,:,ilat,ilon]])
+                fgefs_hindcast = np.array([gefs_hindcast[:,:,:,indlat,:][:,:,:,:,indlon]])
                 fgftime = np.array(gftime)
                 fgflat = np.array([gflat[indlat]])
                 fgflon = np.array([gflon[indlon]])
             else:
                 fgefs_forecast = np.append(fgefs_forecast,np.array([gefs_forecast[:,:,:,indlat,:][:,:,:,:,indlon]]),axis=0)
-                fgefs_hindcast = np.append(fgefs_hindcast,np.array([gefs_hindcast[:,:,:,ilat,ilon]]),axis=0)
+                fgefs_hindcast = np.append(fgefs_hindcast,np.array([gefs_hindcast[:,:,:,indlat,:][:,:,:,:,indlon]]),axis=0)
                 fgflat = np.append(fgflat,np.array([gflat[indlat]]),axis=0)
                 fgflon = np.append(fgflon,np.array([gflon[indlon]]),axis=0)
 
@@ -209,9 +211,9 @@ if __name__ == "__main__":
     vu10_gefs_forecast = ncfile.createVariable('u10_gefs_forecast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
     vhs_gefs_forecast = ncfile.createVariable('hs_gefs_forecast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
     vtp_gefs_forecast = ncfile.createVariable('tp_gefs_forecast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
-    vu10_gefs_hindcast = ncfile.createVariable('u10_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member'))
-    vhs_gefs_hindcast = ncfile.createVariable('hs_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member'))
-    vtp_gefs_hindcast = ncfile.createVariable('tp_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member'))
+    vu10_gefs_hindcast = ncfile.createVariable('u10_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
+    vhs_gefs_hindcast = ncfile.createVariable('hs_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
+    vtp_gefs_hindcast = ncfile.createVariable('tp_gefs_hindcast',np.dtype('float32').char,('points','time','ensemble_member','lat','lon'))
     # Assign units
     vt.units = 'seconds since 1970-01-01T00:00:00+00:00'
     vblat.units = 'degrees_north' ; vblon.units = 'degrees_east'
@@ -225,7 +227,7 @@ if __name__ == "__main__":
     vensm[:]=np.array(np.arange(0,nenm).astype('int'))[:]
     vlat[:,:]=fgflat[:,:]; vlon[:,:]=fgflon[:,:]
     vu10_gefs_forecast[:,:,:,:,:]=fgefs_forecast[:,0,:,:,:,:]; vhs_gefs_forecast[:,:,:,:,:]=fgefs_forecast[:,1,:,:,:,:]; vtp_gefs_forecast[:,:,:,:,:]=fgefs_forecast[:,2,:,:,:,:]
-    vu10_gefs_hindcast[:,:,:]=fgefs_hindcast[:,0,:,:]; vhs_gefs_hindcast[:,:,:]=fgefs_hindcast[:,1,:,:]; vtp_gefs_hindcast[:,:,:]=fgefs_hindcast[:,2,:,:]
+    vu10_gefs_hindcast[:,:,:,:,:]=fgefs_hindcast[:,0,:,:,:,:]; vhs_gefs_hindcast[:,:,:,:,:]=fgefs_hindcast[:,1,:,:,:,:]; vtp_gefs_hindcast[:,:,:,:,:]=fgefs_hindcast[:,2,:,:,:,:]
     ncfile.close()
     print(' ')
     print("Done. Netcdf ok. New file saved: "+outpath+"GEFS.PointExtract."+date+".nc")
