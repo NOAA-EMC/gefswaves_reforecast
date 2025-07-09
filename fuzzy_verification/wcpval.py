@@ -10,6 +10,7 @@ VERSION AND LAST UPDATE:
  v1.2  05/21/2024
  v1.3  01/10/2025
  v1.4  05/01/2025
+ v1.5  07/08/2025
 
 PURPOSE:
  Validation of long-term probabilistic wave forecasts using 
@@ -20,11 +21,7 @@ PURPOSE:
   from consecutive cycles.
 
 USAGE:
- Four input arguments are required:
- - Station ID (41048 etc)
- - Forecast Lead Time (Day), Initial (ex. 7)
- - Forecast Lead Time (Day), Final (ex. 14)
- - Output path where output files will be saved.
+ These are auxiliar functions used by the main script fuzzy_verification_GEFS.py
 
 DEPENDENCIES:
  See the imports below.
@@ -37,6 +34,7 @@ AUTHOR and DATE:
  01/10/2025: Ricardo M. Campos, climatology and persistence added to reliability diagrams and ROC
   plots. New updates added to the reliability diagram plots.
  05/01/2025: Ricardo M. Campos, edit in read_data (dependence on NDBC buoy data has been removed)
+ 07/08/2025: Ricardo M. Campos, bias correction applied to the hindcast used as ground truth
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
@@ -44,7 +42,7 @@ PERSON OF CONTACT:
 """
 
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 from matplotlib.dates import DateFormatter
 import netCDF4 as nc
 import xarray as xr
@@ -60,6 +58,10 @@ import matplotlib.pyplot as plt
 import properscoring as ps
 from datetime import datetime
 import yaml
+import mvalstats
+import pvalstats
+from pvalstats import ModelObsPlot
+from lmoments3 import lmom_ratios
 import warnings; warnings.filterwarnings("ignore")
 
 sl=13
@@ -76,10 +78,11 @@ def read_data(wlist,bid,ltime1,ltime2,wvar):
 
     lstw=int(len(wlist))
     f=nc.Dataset(wlist[0])    
-    stations = np.array(f.variables['ID'][:][bid]).astype('str')
+    stations = np.array(f.variables['ID'][bid]).astype('str')
+    latm = f.variables['lat'][bid,:]; lonm = f.variables['lon'][bid,:]
     ensm = f.variables['ensemble_member'][:]
-    latm = f.variables['lat'][0,:]; lonm = f.variables['lon'][0,:]
-    indlat = int(np.floor(len(latm)/2)); indlon = int(np.floor(len(lonm)/2))
+    indlat = int(np.floor(len(latm[0,:])/2))
+    indlon = int(np.floor(len(lonm[0,:])/2))
     auxt = np.array(f.variables['time'][:])
     # week 2 forecast
     axt = np.array(auxt-auxt.min())/3600.
@@ -95,14 +98,14 @@ def read_data(wlist,bid,ltime1,ltime2,wvar):
             ctime = np.zeros((len(wlist)),'double')*np.nan
             ftime = np.zeros((len(wlist),len(indt)),'double')*np.nan
             fshape = f.variables[wvar+"_gefs_forecast"].shape
-            gefs_hindcast = np.zeros((len(wlist),len(bid),len(indt),fshape[2]),'f')*np.nan
+            gefs_hindcast = np.zeros((len(wlist),len(bid),len(indt),fshape[2],fshape[3],fshape[4]),'f')*np.nan
             gefs_forecast = np.zeros((len(wlist),len(bid),len(indt),fshape[2],fshape[3],fshape[4]),'f')*np.nan
             gefs_forecast_p = np.zeros((len(wlist),len(bid),len(indt),fshape[2],fshape[3],fshape[4]),'f')*np.nan
             del fshape
 
         ftime[i,:] = np.array(f.variables['time'][indt]).astype('double')
         ctime[i] = np.double(f.variables['time'][0])
-        gefs_hindcast[i,:,:,:] = np.array(f.variables[wvar+"_gefs_hindcast"][bid,:,:][:,indt,:])
+        gefs_hindcast[i,:,:,:,:,:] = np.array(f.variables[wvar+"_gefs_hindcast"][bid,:,:,:,:][:,indt,:,:,:])
         gefs_forecast[i,:,:,:,:,:] = np.array(f.variables[wvar+"_gefs_forecast"][bid,:,:,:,:][:,indt,:,:,:])
         aux = np.array(f.variables[wvar+"_gefs_forecast"][bid,:,:,:,:][:,0,:,:,:])
         for j in range(0,len(indt)):
@@ -136,6 +139,171 @@ def read_obs(fname,wvar,altselm):
 
     return result
 
+
+# --- Bias correction using altimeter obs ---
+
+# Quantile Mapping bias-correction
+def qm_train(model=None,obs=None,prob=None):
+    """ 
+    Univariate linear regression calibration using the Quantile Mapping Method
+    Fit module
+    Input:
+    - model data
+    - observations ("truth")
+    - probability array (optional) to define the percentiles 
+    Output:
+    - slope
+    - intercept
+    """
+
+    if (np.size(model)>2)==False or (np.size(obs)>2)==False:
+        raise ValueError("Model and Obs arrays must be informed.")
+
+    if np.size(model) != np.size(obs):
+        raise ValueError("Model and Obs arrays must have the same sizes.")
+
+    # Probability array
+    if prob==None:
+        prob=np.append(np.array(np.arange(1.,50.+0.1,1.),'f'),np.array(np.arange(50.5,99.5+0.1,0.5),'f'))
+        prob=np.append(prob,np.array([99.7,99.8,99.9,99.95,99.99]))
+
+    slope,intercept = np.polyfit(np.nanpercentile(model,prob),np.nanpercentile(obs,prob),1)
+    # model_cal=np.array((model*slope)+intercept)
+    print(" QMM linear regression. Slope: "+repr(slope)+"  Intercept: "+repr(intercept))
+
+    return float(slope),float(intercept)
+
+def qmcal(model=None,slope=1.,intercept=0.,pprint='yes'):
+    """ 
+    Univariate linear regression calibration using the Quantile Mapping Method
+    Calibration module based on previously trained qm_train
+    Input:
+    - model data
+    - slope
+    - intercept
+    Output:
+    - calibrated model data
+    """
+
+    if (np.size(model)>2)==False:
+        raise ValueError("Model array must be informed.")
+
+    model_cal=np.array((model*slope)+intercept)
+    if pprint=='yes':
+        print(" QMM linear regression. Slope: "+repr(slope)+"  Intercept: "+repr(intercept))
+
+    return np.array(model_cal).astype('float')
+
+
+def bias_correction(gdata,obs,spctl,wvar,opath):
+    '''
+    Bias correction of GEFS hindcast data. 
+    Using altimeter data for calibration, and buoy data to validate the results.
+    '''
+
+    gefs_hindcast = gdata['gefs_hindcast']
+
+    gefs_hindcast_bc = np.copy(gefs_hindcast)
+    pctlarr = np.arange(spctl,99.9,0.1)
+
+    merr=np.zeros((len(gdata['stations']),len(gdata['ensm'])),'f')*np.nan
+    merr_cal=np.zeros((len(gdata['stations']),len(gdata['ensm'])),'f')*np.nan
+
+    for i in range(0,len(gdata['stations'])):
+        if gdata['stations'][i] in obs['bid']:
+            inds=np.where(gdata['stations'][i]==obs['bid'])[0][0]
+            fmodel=np.array([]); fobs=np.array([])
+            c=0
+            for j in range(0,gdata['ftime'].shape[0]):
+                for k in range(0,gdata['ftime'].shape[1]):
+                    indt = np.where( np.abs(gdata['ftime'][j,k]-obs['btime'])<1800. )
+                    if np.size(indt)>0:
+                        indt=indt[0][0]
+                        if np.any( np.isnan(obs['alt'][inds,:,:][indt,:]) == False ):
+
+                            for p in range(0,obs['mlat'].shape[1]):
+                                if obs['alt'][inds,:,:][indt,:][p] > 0. :
+
+                                    indplat=np.where( np.abs(gdata['latm'][i,:]-obs['mlat'][inds,p]) == np.min( np.abs(gdata['latm'][i,:]-obs['mlat'][inds,p]) ) )[0][0]
+                                    indplon=np.where( np.abs(gdata['lonm'][i,:]-obs['mlon'][inds,p]) == np.min( np.abs(gdata['lonm'][i,:]-obs['mlon'][inds,p]) ) )[0][0]
+
+                                    # statistical comparison between neighboring points
+                                    stresult = np.round(np.abs(mvalstats.metrics(gefs_hindcast[j,i,:,0,gdata['indlat'],gdata['indlon']],gefs_hindcast[j,i,:,0,indplat,indplon])[[2,5,7]]),3)
+                                    L1, L2, t3_p, t4_p = lmom_ratios(gefs_hindcast[j,i,:,0,gdata['indlat'],gdata['indlon']], nmom=4); l1_p = L2 / L1
+                                    L1, L2, t3_n, t4_n = lmom_ratios(gefs_hindcast[j,i,:,0,indplat,indplon], nmom=4); l1_n = L2 / L1
+
+                                    if stresult[0]<0.1 and stresult[1]<0.1 and stresult[2]>0.8 and np.abs(l1_p-l1_n)<0.05 and np.abs(t3_p-t3_n)<0.05 and np.abs(t4_p-t4_n)<0.05:
+
+                                        if c==0:
+                                            fmodel=np.array([gefs_hindcast[j,i,k,:,indplat,indplon]])
+                                            fobs=np.array([np.full( len(gdata['ensm']),obs['alt'][inds,:,:][indt,:][p])])
+                                        else:
+                                            fmodel=np.append(fmodel, np.array([gefs_hindcast[j,i,k,:,indplat,indplon]]),axis=0)
+                                            fobs=np.append(fobs, np.array([np.full( len(gdata['ensm']),obs['alt'][inds,:,:][indt,:][p])]),axis=0)
+
+                                        del indplat,indplon
+                                        c=c+1
+                                        # print(" Ok, "+gdata['stations'][i]+". "+repr(j)+", "+repr(k))
+
+                                    else:
+                                        print(" Neighbour point is statistically different, "+gdata['stations'][i]+". "+repr(j)+", "+repr(k))
+
+            for j in range(0,len(gdata['ensm'])):
+                if np.size(np.where(fobs[:,j]>0))>100.:
+                    # qmm_slope,qmm_intercept = qm_train(model=fmodel[:,j],obs=fobs[:,j])
+                    qmm_slope=1.
+                    qmm_intercept = np.nanmean( np.nanpercentile(fobs[:,j],pctlarr) - np.nanpercentile(fmodel[:,j],pctlarr) )
+                    # merr = np.array(mvalstats.metrics(fmodel[:,j],fobs[:,j],pctlerr='yes'))[9]
+
+                    gefs_hindcast_bc[:,i,:,:,:,:][:,:,j,:,:] = qmcal(model=gefs_hindcast[:,i,:,:,:,:][:,:,j,:,:],slope=qmm_slope,intercept=qmm_intercept)
+                    del qmm_slope,qmm_intercept
+
+                    print(" QMM station "+gdata['stations'][i])
+
+            # Quick assessment against buoy (when available)
+            bobs=[]
+            c=0
+            if np.any(obs['buoy'][inds,:] > 0.)==True:
+                for j in range(0,gdata['ftime'].shape[0]):
+                    for k in range(0,gdata['ftime'].shape[1]):
+                        indt = np.where( np.abs(gdata['ftime'][j,k]-obs['btime'])<1800. )
+                        if np.size(indt)>0:
+                            if c==0:
+                                ghcal = np.array([gefs_hindcast_bc[j,i,k,:,gdata['indlat'],gdata['indlon']]])
+                                gh = np.array([gefs_hindcast[j,i,k,:,gdata['indlat'],gdata['indlon']]])
+                            else:
+                                ghcal = np.append(ghcal,np.array([gefs_hindcast_bc[j,i,k,:,gdata['indlat'],gdata['indlon']]]),axis=0)
+                                gh = np.append(gh,np.array([gefs_hindcast[j,i,k,:,gdata['indlat'],gdata['indlon']]]),axis=0)
+
+                            bobs=np.append(bobs,obs['buoy'][inds,indt])
+                            c=c+1
+
+                for j in range(0,len(gdata['ensm'])):
+                    # RMSE pctl95
+                    merr[i,j] = mvalstats.metrics(gh[:,j],bobs,pctlerr='yes')[9]
+                    merr_cal[i,j] = mvalstats.metrics(ghcal[:,j],bobs,pctlerr='yes')[9]
+                    # Plots
+                    if j==0:
+                        mop=ModelObsPlot(model=[gh[:,j],ghcal[:,j]],obs=bobs,mlabels=["GEFSv12","GEFSv12_QMM"],ftag=opath+"/Eval_"+wvar+"_"+gdata['stations'][i]+"_",vaxisname=wvar)
+                        mop.qqplot(); mop.scatterplot(); mop.taylordiagram()
+
+                del ghcal, gh
+
+            del bobs
+
+            fig1 = plt.figure(1,figsize=(5,4.5)); ax = fig1.add_subplot(111)
+            ax.plot(merr[i,:],'k'); ax.plot(merr_cal[i,:],'r')
+            plt.grid(c='grey', ls=':', alpha=0.5,zorder=1)
+            ax.set_xlabel("Ens Members"); ax.set_ylabel("Bias (Pctl95)")
+            plt.tight_layout()
+            plt.savefig(opath+"/Eval_"+wvar+"_"+gdata['stations'][i]+"_BiasPctl95.png", dpi=200, facecolor='w', edgecolor='w',orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+            plt.close(fig1); del fig1, ax
+
+
+    return gefs_hindcast_bc
+
+
+# ---- STATISTICAL MODELLING -----
 
 # Function to check np.sort using multidimensional array
 def tsort(model):
