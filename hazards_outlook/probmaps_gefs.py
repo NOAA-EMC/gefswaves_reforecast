@@ -104,7 +104,7 @@ with open(fconfig, 'r') as file:
 
 ftag=str(wconfig['ftag'])
 
-# number of ensemble members
+# graphical mode, external or internal
 mode=str(wconfig['mode'])
 # number of ensemble members
 nenm=wconfig['nenm']
