@@ -42,7 +42,7 @@ PERSON OF CONTACT:
 """
 
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 from matplotlib.dates import DateFormatter
 import netCDF4 as nc
 import xarray as xr
@@ -78,7 +78,8 @@ def read_data(wlist,bid,ltime1,ltime2,wvar):
 
     lstw=int(len(wlist))
     f=nc.Dataset(wlist[0])    
-    stations = np.array(f.variables['ID'][bid]).astype('str')
+    # stations = np.array(f.variables['ID'][bid]).astype('str')
+    stations = np.array([f.variables['ID'][i] for i in bid]).astype('str')
     latm = f.variables['lat'][bid,:]; lonm = f.variables['lon'][bid,:]
     ensm = f.variables['ensemble_member'][:]
     indlat = int(np.floor(len(latm[0,:])/2))
@@ -233,6 +234,7 @@ def bias_correction(gdata,obs,spctl,wvar,opath):
                                     L1, L2, t3_n, t4_n = lmom_ratios(gefs_hindcast[j,i,:,0,indplat,indplon], nmom=4); l1_n = L2 / L1
 
                                     if stresult[0]<0.1 and stresult[1]<0.1 and stresult[2]>0.8 and np.abs(l1_p-l1_n)<0.05 and np.abs(t3_p-t3_n)<0.05 and np.abs(t4_p-t4_n)<0.05:
+                                    # if stresult[0]<0.15 and stresult[1]<0.15 and stresult[2]>0.75 and np.abs(l1_p-l1_n)<0.07 and np.abs(t3_p-t3_n)<0.07 and np.abs(t4_p-t4_n)<0.07:
 
                                         if c==0:
                                             fmodel=np.array([gefs_hindcast[j,i,k,:,indplat,indplon]])
@@ -251,7 +253,7 @@ def bias_correction(gdata,obs,spctl,wvar,opath):
             for j in range(0,len(gdata['ensm'])):
                 if np.size(np.where(fobs[:,j]>0))>100.:
                     # qmm_slope,qmm_intercept = qm_train(model=fmodel[:,j],obs=fobs[:,j])
-                    qmm_slope=1.
+                    qmm_slope=1. # does not change the slope for now
                     qmm_intercept = np.nanmean( np.nanpercentile(fobs[:,j],pctlarr) - np.nanpercentile(fmodel[:,j],pctlarr) )
                     # merr = np.array(mvalstats.metrics(fmodel[:,j],fobs[:,j],pctlerr='yes'))[9]
 
@@ -279,25 +281,27 @@ def bias_correction(gdata,obs,spctl,wvar,opath):
                             c=c+1
 
                 for j in range(0,len(gdata['ensm'])):
-                    # RMSE pctl95
-                    merr[i,j] = mvalstats.metrics(gh[:,j],bobs,pctlerr='yes')[9]
-                    merr_cal[i,j] = mvalstats.metrics(ghcal[:,j],bobs,pctlerr='yes')[9]
-                    # Plots
-                    if j==0:
-                        mop=ModelObsPlot(model=[gh[:,j],ghcal[:,j]],obs=bobs,mlabels=["GEFSv12","GEFSv12_QMM"],ftag=opath+"/Eval_"+wvar+"_"+gdata['stations'][i]+"_",vaxisname=wvar)
-                        mop.qqplot(); mop.scatterplot(); mop.taylordiagram()
+                    if np.any(gh[:,j]>0.)==True and np.any(ghcal[:,j]>0.)==True and np.any(bobs>0.)==True :
+                        # RMSE pctl95
+                        merr[i,j] = mvalstats.metrics(gh[:,j],bobs,pctlerr='yes')[9]
+                        merr_cal[i,j] = mvalstats.metrics(ghcal[:,j],bobs,pctlerr='yes')[9]
+                        # Plots
+                        if j==0:
+                            mop=ModelObsPlot(model=[gh[:,j],ghcal[:,j]],obs=bobs,mlabels=["GEFSv12","GEFSv12_BC"],ftag=opath+"/Eval_"+wvar+"_"+gdata['stations'][i]+"_",vaxisname=wvar)
+                            mop.qqplot(); mop.scatterplot(); mop.taylordiagram()
 
                 del ghcal, gh
 
             del bobs
 
-            fig1 = plt.figure(1,figsize=(5,4.5)); ax = fig1.add_subplot(111)
-            ax.plot(merr[i,:],'k'); ax.plot(merr_cal[i,:],'r')
-            plt.grid(c='grey', ls=':', alpha=0.5,zorder=1)
-            ax.set_xlabel("Ens Members"); ax.set_ylabel("Bias (Pctl95)")
-            plt.tight_layout()
-            plt.savefig(opath+"/Eval_"+wvar+"_"+gdata['stations'][i]+"_BiasPctl95.png", dpi=200, facecolor='w', edgecolor='w',orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
-            plt.close(fig1); del fig1, ax
+            if np.any(merr[i,:]>-999.)==True and np.any(merr_cal[i,:]>-999.)==True :
+                fig1 = plt.figure(1,figsize=(5,4.5)); ax = fig1.add_subplot(111)
+                ax.plot(merr[i,:],'k'); ax.plot(merr_cal[i,:],'r')
+                plt.grid(c='grey', ls=':', alpha=0.5,zorder=1)
+                ax.set_xlabel("Ens Members"); ax.set_ylabel("Bias (Pctl95)")
+                plt.tight_layout()
+                plt.savefig(opath+"/Eval_"+wvar+"_"+gdata['stations'][i]+"_BiasPctl95.png", dpi=200, facecolor='w', edgecolor='w',orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+                plt.close(fig1); del fig1, ax
 
 
     return gefs_hindcast_bc
