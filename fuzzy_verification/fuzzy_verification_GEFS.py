@@ -46,7 +46,7 @@ PERSON OF CONTACT:
 """
 
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import numpy as np
 import sys
 import pandas as pd
@@ -62,22 +62,25 @@ matplotlib.rc('xtick', labelsize=sl); matplotlib.rc('ytick', labelsize=sl); matp
 if __name__ == "__main__":
 
     # point manual selection (index)
-    # bid=np.arange(0,22).astype('int')
-    bid = np.array([1,2,3,4])
+    bid = np.array([15,16,17]).astype('int')
+    oceaname = "Atlantic"
+    groupname = "na_labrador_greenland"
     lbid = len(bid)
     # variable (u10 or hs)
-    wvar='hs'
+    wvar='u10'
     # Forecast Lead Time (Day) and intervall
     ltime1=7
     ltime2=14
     # output path
-    opath="/home/ricardo/work/noaa/analysis/Week2ProbForecast/3assessments/fuzzy_verification/output"
-    # opath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/output"
+    # opath="/home/ricardo/work/noaa/analysis/Week2ProbForecast/3assessments/fuzzy_verification/output"
+    opath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/output/"+oceaname+"/"+groupname
     # file tag for output file names
     ftag=opath+"/Validation_"+wvar+"_"
 
     # Observations
-    fobsname="/media/ricardo/ssdrmc/analysis/3assessments/fuzzy_verification/data/Altimeter.Buoy.PointExtract.Pacific_20201001to20250101.nc"
+    # fobsname="/media/ricardo/ssdrmc/analysis/3assessments/fuzzy_verification/data/Altimeter.Buoy.PointExtract.Pacific_20201001to20250101.nc"
+    fobsname="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/data/"+oceaname+"/Altimeter.Buoy.PointExtract."+oceaname+"_20201001to20250101.nc"
+
     # obs = read_obs(fobsname,wvar,"mean")
     obs = read_obs(fobsname,wvar,"max")
 
@@ -105,7 +108,7 @@ if __name__ == "__main__":
     print(" Reading Model Data ...")
     # list of netcdf files generated with buildfuzzydataset.py
     # ls -d $PWD/*.nc > list.txt &
-    wlist = np.atleast_1d(np.loadtxt('list.txt',dtype=str)) 
+    wlist = np.atleast_1d(np.loadtxt("list_"+oceaname+".txt",dtype=str)) 
     gdata = read_data(wlist,bid,ltime1,ltime2,wvar)
     indlat = gdata['indlat']; indlon = gdata['indlon']
     print(" Reading Model Data, OK")
@@ -320,4 +323,5 @@ if __name__ == "__main__":
 
     plt.close('all')
     print(" Reliability Curve, OK")
+
 
