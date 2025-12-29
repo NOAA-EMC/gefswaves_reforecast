@@ -10,6 +10,7 @@ VERSION AND LAST UPDATE:
  v1.2  02/24/2024
  v1.3  07/31/2024
  v2.0  09/11/2024
+ v2.1  12/17/2025
 
 PURPOSE:
  This program makes the probability maps based on the NOAA Global Ensemble
@@ -55,25 +56,29 @@ AUTHOR and DATE:
   winds and waves, in green.
  07/31/2024: Ricardo M. Campos, mask up / de-emphasize the tropics between 30S to 30N.
  09/11/2024: Ricardo M. Campos, mask the tropics only during hurricane season. Generalize
-  the code to be working with any domain (lat/lon intervals)
+  the code to be working with any domain (lat/lon intervals).
+ 12/17/2025: Ricardo M. Campos, inclusion of KML with polygons and contours, able to open in 
+  Google Earth.
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
 
 """
 
-# Pay attention to the pre-requisites and libraries
 import matplotlib
 matplotlib.use('Agg')
 import pygrib
 import xarray as xr
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import zipfile
 import yaml
 from matplotlib.colors import ListedColormap
+from matplotlib.path import Path
 from scipy.ndimage import gaussian_filter
-import numpy as np
-import pandas as pd
+from shapely.geometry import Polygon
+import simplekml
 import cartopy
 import cartopy.crs as ccrs
 # Palette and colors for plotting the figures
@@ -85,318 +90,378 @@ sl=13 # plot style configuration
 matplotlib.rcParams.update({'font.size': sl}); plt.rc('font', size=sl) 
 matplotlib.rc('xtick', labelsize=sl); matplotlib.rc('ytick', labelsize=sl); matplotlib.rcParams.update({'font.size': sl})
 
-# Input Arguments -----
-# .yaml configuration file
-fconfig=str(sys.argv[1])
-# Forecast Cycle
-fcycle=str(sys.argv[2])
-fcdate=str(fcycle[0:8]); fchour=str(fcycle[8:10])
-# Forecast Lead Time (Day) and intervall
-ltime1=int(sys.argv[3])
-ltime2=int(sys.argv[4])
-# forecast variable: WS10, Hs
-fvarname=str(sys.argv[5])
 
-# Fixed configuration variables, read yaml file -----------
-print(" "); print(" Reading yaml configuration file ...")
-with open(fconfig, 'r') as file:
-    wconfig = yaml.safe_load(file)
+def mpl_color_to_kml(color, alpha):
+    """ Convert matplotlib color to KML aabbggrr format. """
+    r, g, b = colors.to_rgb(color)
+    a = int(alpha * 255)
+    return f'{a:02x}{int(b*255):02x}{int(g*255):02x}{int(r*255):02x}'
 
-ftag=str(wconfig['ftag'])
+def split_path_by_codes(path):
+    """ Split a matplotlib Path into independent line segments. """
+    verts = path.vertices
+    codes = path.codes
 
-# number of ensemble members
-mode=str(wconfig['mode'])
-# number of ensemble members
-nenm=wconfig['nenm']
-# time resolution
-tres=wconfig['tres']
-# n-max expansion
-nmax=wconfig['nmax']
-# spatial window size (diameter), square (degrees)
-spws=wconfig['spws']
-# Plotting Area
-slonmin=wconfig['lonmin']-spws; slonmax=wconfig['lonmax']+spws
-slatmin=wconfig['latmin']-spws; slatmax=wconfig['latmax']+spws
-# Spatial percentile (grid points)
-spctl=wconfig['spctl']
-# gaussian filter spatial plot smoothing
-gft=wconfig['gft']
-# percentiles for the initial plots
-pctls=np.array(wconfig['pctls']).astype('int')
-# Probability levels
-plevels = np.array(wconfig['plevels']).astype('float')
-hplevels = np.array(wconfig['hplevels']).astype('float')
-# Colors for the probability maps
-pcolors = np.array(wconfig['pcolors']).astype('str')
-hpcolors = np.array(wconfig['hpcolors']).astype('str')
+    if codes is None:
+        return [verts]
 
-# Path of GEFSv12 grib2 files
-gefspath=wconfig['gefspath']
-if gefspath[-1] != '/':
-    gefspath=gefspath+"/"
+    segments = []; current = []
 
-# output path
-outpath=str(wconfig['outpath'])
-if outpath[-1] != '/':
-    outpath=outpath+"/"
+    for v, c in zip(verts, codes):
+        if c == Path.MOVETO:
+            if len(current) > 1:
+                segments.append(np.array(current))
+            current = [v]
+        elif c == Path.LINETO:
+            current.append(v)
 
-umf=1. # unit conversion, when necessary
+    if len(current) > 1:
+        segments.append(np.array(current))
 
-# maximum value allowed (quick quality control), variable name (grib2), and levels for the probability plot
-if fvarname.upper() == "WS10" or fvarname.upper() == "WND" or fvarname.upper() == "U10":
-    qqvmax=wconfig['qqvmax_wnd']
-    mvar=wconfig['mvar_wnd']
-    qlev=np.array(wconfig['qlev_wnd']).astype('float')
-    vtickd=int(wconfig['vtickd_wnd'])
-    funits=str('knots')
-    umf=1.94 # m/s to knots
-elif fvarname.upper() == "HS":
-    qqvmax=wconfig['qqvmax_hs']
-    mvar=wconfig['mvar_hs']
-    funits=str('m')
-    qlev=np.array(wconfig['qlev_hs']).astype('float')
-    vtickd=int(wconfig['vtickd_hs'])
-else:
-    sys.exit(" Input variable "+fvarname+" not included in the list. Please select only one: WS10, Hs.")
+    return segments
 
-print(" Reading yaml configuration file, OK."); print(" ")
+def add_domain_background(kml, lon, lat, color='dimgrey', alpha=0.3):
+    lon_min, lon_max = lon.min(), lon.max()
+    lat_min, lat_max = lat.min(), lat.max()
 
-# Time range forecast intervall string, for the plots
-if (ltime2-ltime1)<0:
-    aux=np.copy(ltime1); ltime1=np.copy(ltime2)
-    ltime2=np.copy(aux); del aux
+    r, g, b = colors.to_rgb(color)
+    a = int(alpha * 255)
+    kml_color = f'{a:02x}{int(b*255):02x}{int(g*255):02x}{int(r*255):02x}'
 
-if ltime1==1 and (ltime2-ltime1)==7:
-    trfi=str("Week 1 - ")
-elif ltime1==7 and (ltime2-ltime1)==7:
-    trfi=str("Week 2 - ")
-elif ltime1==14 and (ltime2-ltime1)==7:
-    trfi=str("Week 3 - ")
-elif ltime1==21 and (ltime2-ltime1)==7:
-    trfi=str("Week 4 - ")
-elif ltime1==28 and (ltime2-ltime1)==7:
-    trfi=str("Week 5 - ")
-elif (ltime2-ltime1)>0:
-    trfi=str("Days "+str(ltime1)+"-"+str(ltime2)+" , ")
-elif ltime2==ltime1:
-    trfi=str("Day "+str(ltime1)+" , ")
-else:
-    trfi=''
+    bg = kml.newpolygon(name="Model domain",
+        outerboundaryis=[(lon_min, lat_min),(lon_max, lat_min),
+            (lon_max, lat_max),(lon_min, lat_max),(lon_min, lat_min),])
 
-print(" "); print(" 1. Reading Forecast Data ...")
+    bg.tessellate = 1
+    bg.altitudemode = simplekml.AltitudeMode.clamptoground
+    bg.style.polystyle.color = kml_color
+    bg.style.polystyle.outline = 0
 
-auxltime = np.arange((ltime1-1)*24,((ltime2)*24)+1,tres)
-auxltime[auxltime>384]=384; auxltime[auxltime<0]=0
+def contour_to_kml(lon, lat, Z, levels, colors, filename):
 
-# READ WW3 Ensemble Forecast files. Appending forecast days (time intervall).
-c=0
-for t in range(0,auxltime.shape[0]):
-    for enm in range(0,nenm):
+    kml = simplekml.Kml()
 
-        if enm==0:
-            fname=gefspath+"gefs."+fcdate+"/"+fchour+"/wave/gridded/gefs.wave.t"+fchour+"z.c"+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
-        else:
-            fname=gefspath+"gefs."+fcdate+"/"+fchour+"/wave/gridded/gefs.wave.t"+fchour+"z.p"+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
+    # 1 DOMAIN BACKGROUND
+    add_domain_background(kml, lon, lat)
 
-        if c==0:
-            ds = xr.open_dataset(fname, engine='cfgrib')
-            wtime = np.atleast_1d(np.array(ds.time.values))
-            lat = np.array(ds.latitude.values); lat = np.sort(lat); lon = np.array(ds.longitude.values)
-            fmod=np.zeros((auxltime.shape[0],nenm,lat.shape[0],lon.shape[0]),'f')*np.nan
-            ds.close(); del ds
+    # 2 LIGHT FILLED POLYGONS
+    csf = plt.contourf(lon, lat, Z, levels=levels, colors=colors, alpha=0.25)
+    plt.close()
 
-        # opening and reading with pygrib (faster than xarray cfgrib)
-        grbs = pygrib.open(fname); glist=list(grbs.select())
-        ind=np.nan
-        for i in range(0,len(glist)):
-            if mvar in str(glist[i]):
-                ind=int(i)
-        if ind>=0:
-            grb = grbs.select()[ind]
-            fmod[t,enm,:,:]=np.flip(grb.values,axis=0)
-        else:
-            sys.exit(" Enviromental variable "+mvar+" not found in the grib2 file "+fname)
+    for i, collection in enumerate(csf.collections):
+        kml_fill_color = mpl_color_to_kml(colors[i], 0.25)
 
-        c=c+1; del ind
+        for path in collection.get_paths():
+            for poly in path.to_polygons():
+                if len(poly) < 4:
+                    continue
 
-    print(repr(t))
+                simplified = Polygon(poly).simplify(0.1, preserve_topology=True)
+                if simplified.is_empty:
+                    continue
 
-# Quick simple quality control
-fmod[fmod>=qqvmax]=np.nan; fmod[fmod<0.]=np.nan
-# Unit conversion
-fmod=fmod*umf
-# Select domain of interest
-indlat=np.where((lat>=(slatmin-spws))&(lat<=(slatmax+spws)))
-indlon=np.where((lon>=(slonmin-spws))&(lon<=(slonmax+spws)))
-if np.size(indlon)>0 and np.size(indlat)>0:
-    lat=np.copy(lat[indlat[0]]); lon=np.copy(lon[indlon[0]])
-    fmod=np.copy(fmod[:,:,indlat[0],:][:,:,:,indlon[0]])
-else:
-    sys.exit(" Min/Max lat and lon incorrect when applied to the forecast file. Check longitude standards.")
+                coords = list(simplified.exterior.coords)
+                if len(coords) < 4:
+                    continue
 
-del indlat, indlon
-print(" 1. Forecast Data ... OK"); print(" ")
+                pol = kml.newpolygon(name=f"P ≥ {levels[i]:.2f}", outerboundaryis=coords)
+                pol.style.polystyle.color = kml_fill_color
+                pol.style.polystyle.outline = 0
 
-fmodo=np.array(fmod.reshape(auxltime.shape[0]*nenm,lat.shape[0],lon.shape[0]))
+    # 3 CONTOUR LINES
+    cs = plt.contour(lon, lat, Z, levels=levels)
+    plt.close()
 
-print(" 2. Initial Plots ...")
-wlevels=np.linspace(0,np.nanpercentile(fmod,99.99),101)
+    for i, level in enumerate(cs.levels):
+        kml_line_color = mpl_color_to_kml(colors[i], 1.0)
 
-# Percentiles
-for i in range(0,pctls.shape[0]):
-    plt.figure(figsize=(9,5.5))
-    ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
-    ax.set_extent([slonmin+spws,slonmax-spws,slatmin+spws,slatmax-spws], crs=ccrs.PlateCarree())
-    # ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
-    gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
-    gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
-    cs=ax.contourf(lon,lat,np.nanpercentile(fmodo,pctls[i],axis=0),levels=wlevels,alpha=0.7,cmap='jet',zorder=1,extend="max",transform = ccrs.PlateCarree())
-    ax.add_feature(cartopy.feature.OCEAN,facecolor=("white"))
-    ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
-    ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
-    ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
-    title = "Percentile"+str(pctls[i]).zfill(2)+" "+fvarname+" ("+funits+"), Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
-    title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
-    title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
-    ax.set_title(title); del title
-    plt.tight_layout()
-    ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.06, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
-    cbar = plt.colorbar(cs,cax=cax, orientation='horizontal', format='%g')
-    labels = np.arange(0, wlevels.max(),vtickd).astype('int'); ticks = np.arange(0, wlevels.max(),vtickd).astype('int')
-    cbar.set_ticks(ticks); cbar.set_ticklabels(labels)
-    plt.axes(ax); plt.tight_layout()
-    plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
-    figname = outpath+"Pctl"+str(pctls[i]).zfill(2)+"_"+fvarname+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+ftag
-    plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
-        orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+        for path in cs.collections[i].get_paths():
+            for seg in split_path_by_codes(path):
+                if len(seg) < 2:
+                    continue
 
-    plt.close('all')
-    # convert to kmz
-    with zipfile.ZipFile(figname+".kmz", "w") as kmz:
-        kmz.write(figname+".png")
+                ls = kml.newlinestring(name=f"P = {level:.2f}",
+                    coords=[(x, y) for x, y in seg])
+                ls.style.linestyle.color = kml_line_color
+                ls.style.linestyle.width = 4
 
-    del ax, figname
-    print(" 2. Initial Plots. Percentile "+str(pctls[i]).zfill(2)+" ok.")
-
-print(" "); print(" 3. Space-Time Cells and Probabilities ...")
-
-# n-max expansion and reshape
-fmod=np.sort(fmod,axis=0)
-fmod=np.copy(fmod[-nmax::,:,:,:])
-fmod=np.array(fmod.reshape(nmax*nenm,lat.shape[0],lon.shape[0]))
-
-gspws=int(np.floor(spws/np.diff(lat).mean())/2)
-
-probecdf=np.zeros((qlev.shape[0],lat.shape[0],lon.shape[0]),'f')
-for i in range(0,qlev.shape[0]):
-    for j in range(0,lat.shape[0]):
-        for k in range(0,lon.shape[0]):
-            if np.any(fmod[:,j,k]>0.0):
-                if (j>=gspws) and (j<=lat.shape[0]-gspws) and (k>=gspws) and (k<=lon.shape[0]-gspws):
-                    aux=np.array(fmod[:,(j-gspws):(j+gspws+1),:][:,:,(k-gspws):(k+gspws+1)])
-                    aux=aux.reshape(nmax*nenm,aux.shape[1]*aux.shape[2])
-                    aux=np.sort(aux,axis=1)
-                    ind=np.where(np.mean(aux,axis=0)>=0.)
-                    if np.size(ind)>0:
-                        aux=np.array(aux[:,ind[0]])            
-                        aux=np.array(aux[:,int(np.floor(aux.shape[1]*(spctl/100)))::])
-                        aux=aux.reshape(aux.shape[0]*aux.shape[1])
-                        probecdf[i,j,k] = np.size(aux[aux>qlev[i]]) / np.size(aux[aux>0.])
-
-                    del aux
-
-print(" 3. Space-Time Cells and Probabilities ... OK"); print(" ")
-
-# PLOTS
-print(" 4. Probability Maps ...")
-
-# Probability levels and labels for the plots
-clabels=[];clevels=[]
-for j in range(0,np.size(plevels)-1):
-    clabels=np.append(clabels,">"+str(int(plevels[j]*100)).zfill(2)+"%")
-    clevels=np.append(clevels,(plevels[j]+plevels[j+1])/2)
-
-cmap = ListedColormap(pcolors)
+    kml.save(filename)
 
 
-# If hurricane season (May 15th to Nov 31st), it mask (or cuts) the tropics for external plots
-mmdd = wtime[0].astype('datetime64[D]').astype(object).month * 100 + wtime[0].astype('datetime64[D]').astype(object).day
-if mode=='external' and (mmdd>=515 and mmdd<=1130):
-    slatmin=wconfig['latminhs']-spws # min latitude for the hurricane season
+if __name__ == "__main__":
+    # Input Arguments -----
+    # .yaml configuration file
+    fconfig=str(sys.argv[1])
+    # Forecast Cycle
+    fcycle=str(sys.argv[2])
+    fcdate=str(fcycle[0:8]); fchour=str(fcycle[8:10])
+    # Forecast Lead Time (Day) and intervall
+    ltime1=int(sys.argv[3])
+    ltime2=int(sys.argv[4])
+    # forecast variable: WS10, Hs
+    fvarname=str(sys.argv[5])
 
-# Loop through the intensity levels
-for i in range(0,qlev.shape[0]):
+    # Fixed configuration variables, read yaml file -----------
+    print(" "); print(" Reading yaml configuration file ...")
+    with open(fconfig, 'r') as file:
+        wconfig = yaml.safe_load(file)
 
-    # Extra percentage level associated with the most extreme case
-    if i == int(qlev.shape[0]-1):
+    ftag=str(wconfig['ftag'])
 
-        plevels = hplevels
-        pcolors = hpcolors
+    # number of ensemble members
+    mode=str(wconfig['mode'])
+    # number of ensemble members
+    nenm=wconfig['nenm']
+    # time resolution
+    tres=wconfig['tres']
+    # n-max expansion
+    nmax=wconfig['nmax']
+    # spatial window size (diameter), square (degrees)
+    spws=wconfig['spws']
+    # Plotting Area
+    slonmin=wconfig['lonmin']-spws; slonmax=wconfig['lonmax']+spws
+    slatmin=wconfig['latmin']-spws; slatmax=wconfig['latmax']+spws
+    # Spatial percentile (grid points)
+    spctl=wconfig['spctl']
+    # gaussian filter spatial plot smoothing
+    gft=wconfig['gft']
+    # percentiles for the initial plots
+    pctls=np.array(wconfig['pctls']).astype('int')
+    # Probability levels
+    plevels = np.array(wconfig['plevels']).astype('float')
+    hplevels = np.array(wconfig['hplevels']).astype('float')
+    # Colors for the probability maps
+    pcolors = np.array(wconfig['pcolors']).astype('str')
+    hpcolors = np.array(wconfig['hpcolors']).astype('str')
 
-        clabels=[];clevels=[]
-        for j in range(0,np.size(plevels)-1):
-            clabels=np.append(clabels,">"+str(int(plevels[j]*100))+"%")
-            clevels=np.append(clevels,(plevels[j]+plevels[j+1])/2)
+    # Path of GEFSv12 grib2 files
+    gefspath=wconfig['gefspath']
+    if gefspath[-1] != '/':
+        gefspath=gefspath+"/"
 
-        cmap = ListedColormap(pcolors)
+    # output path
+    outpath=str(wconfig['outpath'])
+    if outpath[-1] != '/':
+        outpath=outpath+"/"
 
-    # Figure
-    plt.figure(figsize=(9,5.5))
-    ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
-    ax.set_extent([slonmin+spws,slonmax-spws,slatmin+spws,slatmax-spws], crs=ccrs.PlateCarree())
-    # ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
-    gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
-    gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
-    ax.add_feature(cartopy.feature.OCEAN,facecolor=("white"))
-    ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
-    ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
-    ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
-    title = "Prob "+fvarname+">"+str(qlev[i]).zfill(1)+funits+", Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
-    title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
-    title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
+    umf=1. # unit conversion, when necessary
 
-    # If external and in the hurricane season, it masks (or cuts) the tropics.
-    if mode=='external' and (mmdd>=515 and mmdd<=1130) and np.any((np.linspace(wconfig['latminhs'],slatmax,10)>-25.) & (np.linspace(wconfig['latminhs'],slatmax,10)<25.)):
-        contour_data = gaussian_filter(probecdf[i, :, :], gft)
-        tropical_mask = (lat >= -30) & (lat <= 30)
-        # Expand tropical_mask to match the shape of contour_data
-        tropical_mask_expanded = np.tile(tropical_mask[:, np.newaxis], (1, lon.shape[0]))
-        # Add transparency to tropical areas
-        cs = ax.contourf(lon, lat, np.ma.masked_where(tropical_mask_expanded, contour_data), 
-                                      levels=plevels, cmap=cmap, alpha=0.7, zorder=1, transform=ccrs.PlateCarree())
-
-        ax.add_patch(plt.Rectangle((slonmin, -30), 360, 60, transform=ccrs.PlateCarree(), color='whitesmoke', alpha=0.4, zorder=2, hatch='//', edgecolor='none'))
-        ax.add_patch(plt.Rectangle((slonmin, -30), 360, 60, transform=ccrs.PlateCarree(), color='whitesmoke', alpha=0.4, zorder=2, hatch='\\', edgecolor='none'))
-
-        plt.text(slonmin+spws-270+1, 0., 'This product is not intended for tropical cyclones', color='k', fontsize=8, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'), zorder=4)
-        plt.text(slonmin+spws-270+1, -5., 'Tropical latitudes are masked during hurricane season.', color='k', fontsize=7, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),zorder=4)
-
+    # maximum value allowed (quick quality control), variable name (grib2), and levels for the probability plot
+    if fvarname.upper() == "WS10" or fvarname.upper() == "WND" or fvarname.upper() == "U10":
+        qqvmax=wconfig['qqvmax_wnd']
+        mvar=wconfig['mvar_wnd']
+        qlev=np.array(wconfig['qlev_wnd']).astype('float')
+        vtickd=int(wconfig['vtickd_wnd'])
+        funits=str('knots')
+        umf=1.94 # m/s to knots
+    elif fvarname.upper() == "HS":
+        qqvmax=wconfig['qqvmax_hs']
+        mvar=wconfig['mvar_hs']
+        funits=str('m')
+        qlev=np.array(wconfig['qlev_hs']).astype('float')
+        vtickd=int(wconfig['vtickd_hs'])
     else:
-        cs=ax.contourf(lon,lat,gaussian_filter(probecdf[i,:,:],gft),levels=plevels,alpha=0.7,cmap=cmap,zorder=1,transform = ccrs.PlateCarree())
+        sys.exit(" Input variable "+fvarname+" not included in the list. Please select only one: WS10, Hs.")
 
-    ax.set_title(title); del title
-    plt.tight_layout()
-    ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.06, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
-    cbar = plt.colorbar(cs,cax=cax, orientation='horizontal',ticks=clevels, format='%g')
-    cbar.ax.set_xticklabels(clabels)
-    cbar.ax.tick_params(length=0)
-    for label in cbar.ax.get_xticklabels():
-        label.set_weight('bold')
+    print(" Reading yaml configuration file, OK."); print(" ")
 
-    plt.axes(ax); plt.tight_layout()
-    plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
-    figname = outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+mode+"_"+ftag
-    plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
-            orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+    # Time range forecast intervall string, for the plots
+    if (ltime2-ltime1)<0:
+        aux=np.copy(ltime1); ltime1=np.copy(ltime2)
+        ltime2=np.copy(aux); del aux
 
-    plt.close('all')
+    if ltime1==1 and (ltime2-ltime1)==7:
+        trfi=str("Week 1 - ")
+    elif ltime1==7 and (ltime2-ltime1)==7:
+        trfi=str("Week 2 - ")
+    elif ltime1==14 and (ltime2-ltime1)==7:
+        trfi=str("Week 3 - ")
+    elif ltime1==21 and (ltime2-ltime1)==7:
+        trfi=str("Week 4 - ")
+    elif ltime1==28 and (ltime2-ltime1)==7:
+        trfi=str("Week 5 - ")
+    elif (ltime2-ltime1)>0:
+        trfi=str("Days "+str(ltime1)+"-"+str(ltime2)+" , ")
+    elif ltime2==ltime1:
+        trfi=str("Day "+str(ltime1)+" , ")
+    else:
+        trfi=''
 
-    # convert to kmz
-    with zipfile.ZipFile(figname+".kmz", "w") as kmz:
-        kmz.write(figname+".png")
+    print(" "); print(" 1. Reading Forecast Data ...")
 
-    del ax, figname
-    print("   Plot ... qlev "+repr(qlev[i]))
+    auxltime = np.arange((ltime1-1)*24,((ltime2)*24)+1,tres)
+    auxltime[auxltime>384]=384; auxltime[auxltime<0]=0
 
-print(" 4. Probability Plots ... OK"); print(" ")
+    # READ WW3 Ensemble Forecast files. Appending forecast days (time intervall).
+    c=0
+    for t in range(0,auxltime.shape[0]):
+        for enm in range(0,nenm):
+
+            if enm==0:
+                fname=gefspath+"gefs."+fcdate+"/"+fchour+"/wave/gridded/gefs.wave.t"+fchour+"z.c"+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
+            else:
+                fname=gefspath+"gefs."+fcdate+"/"+fchour+"/wave/gridded/gefs.wave.t"+fchour+"z.p"+str(enm).zfill(2)+".global.0p25.f"+str(auxltime[t]).zfill(3)+".grib2"
+
+            if c==0:
+                ds = xr.open_dataset(fname, engine='cfgrib')
+                wtime = np.atleast_1d(np.array(ds.time.values))
+                lat = np.array(ds.latitude.values); lat = np.sort(lat); lon = np.array(ds.longitude.values)
+                fmod=np.zeros((auxltime.shape[0],nenm,lat.shape[0],lon.shape[0]),'f')*np.nan
+                ds.close(); del ds
+
+            # opening and reading with pygrib (faster than xarray cfgrib)
+            grbs = pygrib.open(fname); glist=list(grbs.select())
+            ind=np.nan
+            for i in range(0,len(glist)):
+                if mvar in str(glist[i]):
+                    ind=int(i)
+            if ind>=0:
+                grb = grbs.select()[ind]
+                fmod[t,enm,:,:]=np.flip(grb.values,axis=0)
+            else:
+                sys.exit(" Enviromental variable "+mvar+" not found in the grib2 file "+fname)
+
+            c=c+1; del ind
+
+        print(repr(t))
+
+    # Quick simple quality control
+    fmod[fmod>=qqvmax]=np.nan; fmod[fmod<0.]=np.nan
+    # Unit conversion
+    fmod=fmod*umf
+    # Select domain of interest
+    indlat=np.where((lat>=(slatmin-spws))&(lat<=(slatmax+spws)))
+    indlon=np.where((lon>=(slonmin-spws))&(lon<=(slonmax+spws)))
+    if np.size(indlon)>0 and np.size(indlat)>0:
+        lat=np.copy(lat[indlat[0]]); lon=np.copy(lon[indlon[0]])
+        fmod=np.copy(fmod[:,:,indlat[0],:][:,:,:,indlon[0]])
+    else:
+        sys.exit(" Min/Max lat and lon incorrect when applied to the forecast file. Check longitude standards.")
+
+    del indlat, indlon
+    print(" 1. Forecast Data ... OK"); print(" ")
+
+    print(" 2. Space-Time Cells and Probabilities ...")
+
+    # n-max expansion and reshape
+    fmod=np.sort(fmod,axis=0)
+    fmod=np.copy(fmod[-nmax::,:,:,:])
+    fmod=np.array(fmod.reshape(nmax*nenm,lat.shape[0],lon.shape[0]))
+
+    gspws=int(np.floor(spws/np.diff(lat).mean())/2)
+
+    probecdf=np.zeros((qlev.shape[0],lat.shape[0],lon.shape[0]),'f')
+    for i in range(0,qlev.shape[0]):
+        for j in range(0,lat.shape[0]):
+            for k in range(0,lon.shape[0]):
+                if np.any(fmod[:,j,k]>0.0):
+                    if (j>=gspws) and (j<=lat.shape[0]-gspws) and (k>=gspws) and (k<=lon.shape[0]-gspws):
+                        aux=np.array(fmod[:,(j-gspws):(j+gspws+1),:][:,:,(k-gspws):(k+gspws+1)])
+                        aux=aux.reshape(nmax*nenm,aux.shape[1]*aux.shape[2])
+                        aux=np.sort(aux,axis=1)
+                        ind=np.where(np.mean(aux,axis=0)>=0.)
+                        if np.size(ind)>0:
+                            aux=np.array(aux[:,ind[0]])            
+                            aux=np.array(aux[:,int(np.floor(aux.shape[1]*(spctl/100)))::])
+                            aux=aux.reshape(aux.shape[0]*aux.shape[1])
+                            probecdf[i,j,k] = np.size(aux[aux>qlev[i]]) / np.size(aux[aux>0.])
+
+                        del aux
+
+    print(" 2. Space-Time Cells and Probabilities ... OK"); print(" ")
+
+    # PLOTS
+    print(" 3. Probability Maps ...")
+
+    # Probability levels and labels for the plots
+    clabels=[];clevels=[]
+    for j in range(0,np.size(plevels)-1):
+        clabels=np.append(clabels,">"+str(int(plevels[j]*100)).zfill(2)+"%")
+        clevels=np.append(clevels,(plevels[j]+plevels[j+1])/2)
+
+    cmap = ListedColormap(pcolors)
+
+    # If hurricane season (May 15th to Nov 31st), it masks (or cuts) the tropics for external plots
+    mmdd = wtime[0].astype('datetime64[D]').astype(object).month * 100 + wtime[0].astype('datetime64[D]').astype(object).day
+    if mode=='external' and (mmdd>=515 and mmdd<=1130):
+        slatmin=wconfig['latminhs']-spws # min latitude for the hurricane season
+
+    # Loop through the intensity levels
+    for i in range(0,qlev.shape[0]):
+
+        # Extra percentage level associated with the most extreme case
+        if i == int(qlev.shape[0]-1):
+
+            plevels = hplevels
+            pcolors = hpcolors
+
+            clabels=[];clevels=[]
+            for j in range(0,np.size(plevels)-1):
+                clabels=np.append(clabels,">"+str(int(plevels[j]*100))+"%")
+                clevels=np.append(clevels,(plevels[j]+plevels[j+1])/2)
+
+            cmap = ListedColormap(pcolors)
+
+        # Figure
+        plt.figure(figsize=(9,5.5))
+        ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=-90))
+        ax.set_extent([slonmin+spws,slonmax-spws,slatmin+spws,slatmax-spws], crs=ccrs.PlateCarree())
+        # ax.set_extent([slonmin,slonmax,slatmin,slatmax], crs=ccrs.PlateCarree())
+        gl = ax.gridlines(crs=ccrs.PlateCarree(),  xlocs=range(-180,180, 20), draw_labels=True, linewidth=0.5, color='grey', alpha=0.5, linestyle='--')
+        gl.xlabel_style = {'size': 9, 'color': 'k','rotation':0}; gl.ylabel_style = {'size': 9, 'color': 'k','rotation':0}
+        ax.add_feature(cartopy.feature.OCEAN,facecolor=("white"))
+        ax.add_feature(cartopy.feature.LAND,facecolor=("lightgrey"), edgecolor='grey',linewidth=0.5, zorder=2)
+        ax.add_feature(cartopy.feature.BORDERS, edgecolor='grey', linestyle='-',linewidth=0.5, alpha=1, zorder=3)
+        ax.coastlines(resolution='50m', color='dimgrey',linewidth=0.5, linestyle='-', alpha=1, zorder=4)
+        title = "Prob "+fvarname+">"+str(qlev[i]).zfill(1)+funits+", Cycle "+fcycle[0:8]+" "+fcycle[8:10]+"Z \n"
+        title += r"$\bf{"+trfi+"Valid: "+pd.to_datetime(wtime[0]+np.timedelta64(ltime1,'D')).strftime('%B %d, %Y')+" - "
+        title += pd.to_datetime(wtime[0]+np.timedelta64(ltime2,'D')).strftime('%B %d, %Y')+"}$"
+
+        # If external and in the hurricane season, it masks (or cuts) the tropics.
+        if mode=='external' and (mmdd>=515 and mmdd<=1130) and np.any((np.linspace(wconfig['latminhs'],slatmax,10)>-25.) & (np.linspace(wconfig['latminhs'],slatmax,10)<25.)):
+            contour_data = gaussian_filter(probecdf[i, :, :], gft)
+            tropical_mask = (lat >= -30) & (lat <= 30)
+            # Expand tropical_mask to match the shape of contour_data
+            tropical_mask_expanded = np.tile(tropical_mask[:, np.newaxis], (1, lon.shape[0]))
+            # Add transparency to tropical areas
+            cs = ax.contourf(lon, lat, np.ma.masked_where(tropical_mask_expanded, contour_data), 
+                                          levels=plevels, cmap=cmap, alpha=0.7, zorder=1, transform=ccrs.PlateCarree())
+
+            ax.add_patch(plt.Rectangle((slonmin, -30), 360, 60, transform=ccrs.PlateCarree(), color='whitesmoke', alpha=0.4, zorder=2, hatch='//', edgecolor='none'))
+            ax.add_patch(plt.Rectangle((slonmin, -30), 360, 60, transform=ccrs.PlateCarree(), color='whitesmoke', alpha=0.4, zorder=2, hatch='\\', edgecolor='none'))
+
+            plt.text(slonmin+spws-270+1, 0., 'This product is not intended for tropical cyclones', color='k', fontsize=8, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'), zorder=4)
+            plt.text(slonmin+spws-270+1, -5., 'Tropical latitudes are masked during hurricane season.', color='k', fontsize=7, bbox=dict(facecolor='white', alpha=0.8, edgecolor='none'),zorder=4)
+
+        else:
+            cs=ax.contourf(lon,lat,gaussian_filter(probecdf[i,:,:],gft),levels=plevels,alpha=0.7,cmap=cmap,zorder=1,transform = ccrs.PlateCarree())
+
+        ax.set_title(title); del title
+        plt.tight_layout()
+        ax = plt.gca(); pos = ax.get_position(); l, b, w, h = pos.bounds; cax = plt.axes([l+0.06, b-0.07, w-0.12, 0.03]) # setup colorbar axes.
+        cbar = plt.colorbar(cs,cax=cax, orientation='horizontal',ticks=clevels, format='%g')
+        cbar.ax.set_xticklabels(clabels)
+        cbar.ax.tick_params(length=0)
+        for label in cbar.ax.get_xticklabels():
+            label.set_weight('bold')
+
+        plt.axes(ax); plt.tight_layout()
+        plt.text(-90., 76., 'Experimental', color='k', fontsize=13, fontweight='bold')
+        figname = outpath+"ProbMap_"+fvarname+"_"+str(qlev[i]).zfill(1)+"_fcst"+str(ltime1).zfill(2)+"to"+str(ltime2).zfill(2)+"_"+mode+"_"+ftag
+        plt.savefig(figname+".png", dpi=200, facecolor='w', edgecolor='w',
+                orientation='portrait', format='png',transparent=False, bbox_inches='tight', pad_inches=0.1)
+
+        plt.close('all'); del ax
+
+        # KML output file ----------------
+        contour_to_kml(lon,lat,gaussian_filter(probecdf[i, :, :], gft),levels=plevels,
+            colors=np.append(pcolors,pcolors[-1]),
+            filename=figname+".kml")
+
+        del figname
+        # --------------
+
+        print("   Plot ... qlev "+repr(qlev[i]))
+
+    print(" 3. Probability Plots ... OK"); print(" ")
 
