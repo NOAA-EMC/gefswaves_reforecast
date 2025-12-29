@@ -10,7 +10,6 @@
 #  Script to download ECMWF Ensemble Forecast Data from OpenData
 #  https://www.ecmwf.int/en/forecasts/datasets/open-data
 #  using python https://pypi.org/project/ecmwf-opendata/
-#  https://www.ecmwf.int/sites/default/files/elibrary/2021/81274-ifs-documentation-cy47r3-part-vii-ecmwf-wave-model_1.pdf
 #
 # USAGE:
 #  Two input arguments must be entered: cycle time (0,6,12,18) and the output path.
@@ -34,6 +33,13 @@
 ########################################################################
 
 set -euo pipefail
+
+# When working on the cluster
+# export USER_IS_ROOT=0
+# export MODULEPATH=/etc/scl/modulefiles:/apps/lmod/lmod/modulefiles/Core:/apps/modules/modulefiles/Linux:/apps/modules/modulefiles
+# source /apps/lmod/lmod/init/bash
+# module load cdo
+# module load nco
 
 # Directory, cycle time, and python environment setup
 CHOUR="$1"
@@ -89,7 +95,7 @@ ensblm=$(seq -f "%02g" 0 1 50)
 # Loop over members
 for e in $ensblm; do
   member_num=$((10#$e))
-  arqn="ECMWF_ENS_wave_${DATE}${CHOUR}.${e}"
+  arqn="ECMWF_ENS_wind_${DATE}${CHOUR}.${e}"
   FILE="${DIR}/${arqn}.nc"
 
   # Skip if existing file is large enough
@@ -103,7 +109,7 @@ for e in $ensblm; do
     fi
   fi
 
-  sname="download_ECMWF_ENS_wave_m${e}.py"
+  sname="download_ECMWF_ENS_wind_m${e}.py"
   echo " Running ${sname} ..."
 
   if (( member_num == 0 )); then

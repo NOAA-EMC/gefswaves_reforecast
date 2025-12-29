@@ -9,13 +9,15 @@ VERSION AND LAST UPDATE:
  v1.1  11/03/2023
  v1.2  05/20/2024
  v1.3  01/10/2025
+ v1.4  07/08/2025
 
 PURPOSE:
  Validation of long-term probabilistic wave forecasts using 
  fuzzy verification. This can be used to assess and optimize
  the parameters of operational probability maps.
- The probability maps are based on GEFSv12 and have been validated against
-  NDBC buoys and GEFS hindcasts by appending 24-hour segments 
+ The probability maps are based on GEFSv12 and are validated against
+  GEFS hindcasts (built by appending 12-hour segments/cycles) calibrated 
+  using AODN altimeter data, with further validation against NDBC buoys
   from consecutive cycles.
 
 USAGE:
@@ -35,7 +37,8 @@ AUTHOR and DATE:
  05/20/2024: Ricardo M. Campos, including all the station in the analysis,
   GDAS has been excluded, and code renamed to fuzzy_verification_GEFS.py
  01/10/2025: Ricardo M. Campos, climatology and persistence added to the prob validation. Skill 
-  scores BSS and CRPSS included. Unnecessary plots have been removed."
+  scores BSS and CRPSS included. Unnecessary plots have been removed.
+ 07/08/2025: Ricardo M. Campos, bias correction applied to the hindcast used as ground truth
 
 PERSON OF CONTACT:
  Ricardo M Campos: ricardo.campos@noaa.gov
@@ -49,7 +52,6 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import yaml
-from pvalstats import ModelObsPlot
 from wcpval import *
 import warnings; warnings.filterwarnings("ignore")
 
@@ -60,26 +62,30 @@ matplotlib.rc('xtick', labelsize=sl); matplotlib.rc('ytick', labelsize=sl); matp
 if __name__ == "__main__":
 
     # point manual selection (index)
-    # bid=np.arange(0,22).astype('int')
-    bid = np.array([7,8,9,10])
+    bid = np.array([15,16,17]).astype('int')
+    oceaname = "Atlantic"
+    groupname = "na_labrador_greenland"
     lbid = len(bid)
     # variable (u10 or hs)
-    wvar='hs'
+    wvar='u10'
     # Forecast Lead Time (Day) and intervall
     ltime1=7
     ltime2=14
     # output path
-    opath="/home/ricardo/work/noaa/analysis/Week2ProbForecast/3assessments/fuzzy_verification/output/Pacific/bc/np_tropical"
-    # opath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/output"
+    # opath="/home/ricardo/work/noaa/analysis/Week2ProbForecast/3assessments/fuzzy_verification/output"
+    opath="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/output/"+oceaname+"/"+groupname
     # file tag for output file names
     ftag=opath+"/Validation_"+wvar+"_"
 
-    # Cluster data, altogether: yes (1) or no (0)
-    cpoints = 0
+    # Observations
+    # fobsname="/media/ricardo/ssdrmc/analysis/3assessments/fuzzy_verification/data/Altimeter.Buoy.PointExtract.Pacific_20201001to20250101.nc"
+    fobsname="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/data/"+oceaname+"/Altimeter.Buoy.PointExtract."+oceaname+"_20201001to20250101.nc"
 
-    # Bias correction of ground truth
-    qmm_slope = 1.05
-    qmm_intercept = 0. 
+    # obs = read_obs(fobsname,wvar,"mean")
+    obs = read_obs(fobsname,wvar,"max")
+
+    # Cluster data, altogether: yes (1) or no (0)
+    cluster_points = 0
 
     # ---- Read config file and statistical parameters (exaclty the same as the operational) -----
     print(" "); print(" Reading yaml configuration file ...")
@@ -102,7 +108,7 @@ if __name__ == "__main__":
     print(" Reading Model Data ...")
     # list of netcdf files generated with buildfuzzydataset.py
     # ls -d $PWD/*.nc > list.txt &
-    wlist = np.atleast_1d(np.loadtxt('list.txt',dtype=str)) 
+    wlist = np.atleast_1d(np.loadtxt("list_"+oceaname+".txt",dtype=str)) 
     gdata = read_data(wlist,bid,ltime1,ltime2,wvar)
     indlat = gdata['indlat']; indlon = gdata['indlon']
     print(" Reading Model Data, OK")
@@ -110,30 +116,38 @@ if __name__ == "__main__":
     print(" Prepare arrays ...")
     # lengths
     lstw=int(len(wlist))
-    lft = gdata['lft']
-    lct = len(gdata['ctime'])
+    lft = gdata['lft']; lct = len(gdata['ctime'])
+    llatm = len(gdata['latm'][0,:]); llonm = len(gdata['lonm'][0,:])
     lensm = len(gdata['ensm'])
-    llatm = len(gdata['latm'])
-    llonm = len(gdata['lonm'])
+
+    gdata['lonm'][gdata['lonm']>180] = gdata['lonm'][gdata['lonm']>180]-360.
+
+    # ======================================
+    # Bias correction and data assimilation
+    gefs_hindcast_bc = bias_correction(gdata,obs,spctl,wvar,opath)
+
+    # Data Assimilation - Optimal Interpolation
+
+    # --------------------------------------
 
     # Reshape
-    if cpoints == 0:
+    if cluster_points == 0:
         gtloop=int(lct*lbid)
-        gefs_hindcast = gdata['gefs_hindcast'].reshape(gtloop,lft,lensm)
+        # gefs_hindcast = gdata['gefs_hindcast'].reshape(gtloop,lft,lensm)
+        gefs_hindcast = gefs_hindcast_bc[:,:,:,:,gdata['indlat'],gdata['indlon']].reshape(gtloop,lft,lensm); del gefs_hindcast_bc
         gefs_forecast = gdata['gefs_forecast'].reshape(gtloop,lft,lensm,llatm,llonm)
         gefs_forecast_p = gdata['gefs_forecast_p'].reshape(gtloop,lft,lensm,llatm,llonm)
     else:
         gtloop=lct
-        gefs_hindcast = gdata['gefs_hindcast'].reshape(gtloop,lbid*lft,lensm)
+        # gefs_hindcast = gdata['gefs_hindcast'].reshape(gtloop,lbid*lft,lensm)
+        gefs_hindcast = gefs_hindcast_bc.reshape(gtloop,lbid*lft,lensm); del gefs_hindcast_bc
         gefs_forecast = gdata['gefs_forecast'].reshape(gtloop,lbid*lft,lensm,llatm,llonm)
         gefs_forecast_p = gdata['gefs_forecast_p'].reshape(gtloop,lbid*lft,lensm,llatm,llonm)
 
     print(" Prepare arrays, OK")
 
-    # ===== Mimic the operational probability maps methodology ===== 
-    print(" Compute probabilities (same as operational) ...")
-
-    # Ground truth 
+    # =======================================
+    # ----- Ground truth -----------
     gefs_hindcast_t = np.zeros((gtloop),'f')*np.nan
     for i in range(0,gtloop):
         aux = np.nanmean(gefs_hindcast[i,:,:],axis=1) # average ensemble members (hindcast)
@@ -147,10 +161,8 @@ if __name__ == "__main__":
 
         del ind,aux
 
-    # Apply calibration function (from QMM bias correction)
-    gefs_hindcast_t = gefs_hindcast_t*qmm_slope + qmm_intercept
-
-
+    # ===== Mimic the operational probability maps methodology ===== 
+    print(" Compute probabilities (same as operational) ...")
 
     #  -- Probabilistic Forecast array --  
     gspws=int(np.floor(spws/np.diff(gdata['latm']).mean())/2)
@@ -311,4 +323,5 @@ if __name__ == "__main__":
 
     plt.close('all')
     print(" Reliability Curve, OK")
+
 
