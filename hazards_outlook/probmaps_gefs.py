@@ -72,13 +72,13 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import zipfile
 import yaml
 from matplotlib.colors import ListedColormap
 from matplotlib.path import Path
 from scipy.ndimage import gaussian_filter
 from shapely.geometry import Polygon
 import simplekml
+from shapely.ops import unary_union
 import cartopy
 import cartopy.crs as ccrs
 # Palette and colors for plotting the figures
@@ -137,9 +137,10 @@ def add_domain_background(kml, lon, lat, color='dimgrey', alpha=0.3):
     bg.style.polystyle.color = kml_color
     bg.style.polystyle.outline = 0
 
-def contour_to_kml(lon, lat, Z, levels, colors, filename):
+def contour_to_kml(lon, lat, Z, levels, lname, tstart, tend, colors, filename):
 
     kml = simplekml.Kml()
+    kml.document.name = "Probability "+lname+", "+tstart+" to "+tend
 
     # 1 DOMAIN BACKGROUND
     add_domain_background(kml, lon, lat)
@@ -148,25 +149,49 @@ def contour_to_kml(lon, lat, Z, levels, colors, filename):
     csf = plt.contourf(lon, lat, Z, levels=levels, colors=colors, alpha=0.25)
     plt.close()
 
-    for i, collection in enumerate(csf.collections):
-        kml_fill_color = mpl_color_to_kml(colors[i], 0.25)
+    ncol = len(csf.collections)
 
-        for path in collection.get_paths():
-            for poly in path.to_polygons():
-                if len(poly) < 4:
-                    continue
+    for i in range(ncol):
 
-                simplified = Polygon(poly).simplify(0.1, preserve_topology=True)
-                if simplified.is_empty:
-                    continue
+        folder = kml.newfolder(name=f"P ≥ {levels[i]:.2f}")
+        kml_fill_color = mpl_color_to_kml(colors[min(i, len(colors)-1)], 0.25)
 
-                coords = list(simplified.exterior.coords)
-                if len(coords) < 4:
-                    continue
+        polys = []
 
-                pol = kml.newpolygon(name=f"P ≥ {levels[i]:.2f}", outerboundaryis=coords)
-                pol.style.polystyle.color = kml_fill_color
-                pol.style.polystyle.outline = 0
+        # Collect all polygons from i → highest level
+        for j in range(i, ncol):
+            for path in csf.collections[j].get_paths():
+                for poly in path.to_polygons():
+                    if len(poly) < 4:
+                        continue
+
+                    sp = Polygon(poly).simplify(0.1, preserve_topology=True)
+                    if not sp.is_empty:
+                        polys.append(sp)
+
+        if not polys:
+            continue
+
+        merged = unary_union(polys)
+
+        # Handle MultiPolygon cleanly
+        if merged.geom_type == "Polygon":
+            merged = [merged]
+        else:
+            merged = list(merged.geoms)
+
+        for k, g in enumerate(merged):
+            coords = list(g.exterior.coords)
+
+            pol = folder.newpolygon(name=f"{lname} | P ≥ {levels[i]:.2f} | #{k+1}", outerboundaryis=coords)
+
+            # Set the color and style
+            pol.style.polystyle.color = kml_fill_color
+            pol.style.polystyle.outline = 0
+            pol.draworder = int(levels[i] * 100)
+            pol.style.balloonstyle.text = (
+                f"<b>Probability:</b> P ≥ {levels[i]:.2f}<br>"
+                f"<b>Date Range:</b> {tstart} to {tend}")
 
     # 3 CONTOUR LINES
     cs = plt.contour(lon, lat, Z, levels=levels)
@@ -180,11 +205,14 @@ def contour_to_kml(lon, lat, Z, levels, colors, filename):
                 if len(seg) < 2:
                     continue
 
-                ls = kml.newlinestring(name=f"P = {level:.2f}",
-                    coords=[(x, y) for x, y in seg])
+                ls = kml.newlinestring(name=f"P = {level:.2f}", coords=[(x, y) for x, y in seg])
+
                 ls.style.linestyle.color = kml_line_color
                 ls.style.linestyle.width = 4
+                ls.style.balloonstyle.text = ""
 
+    kml.document.timespan.begin = tstart
+    kml.document.timespan.end = tend
     kml.save(filename)
 
 
@@ -208,7 +236,7 @@ if __name__ == "__main__":
 
     ftag=str(wconfig['ftag'])
 
-    # number of ensemble members
+    # plot mode (internal/external)
     mode=str(wconfig['mode'])
     # number of ensemble members
     nenm=wconfig['nenm']
@@ -251,6 +279,7 @@ if __name__ == "__main__":
         qqvmax=wconfig['qqvmax_wnd']
         mvar=wconfig['mvar_wnd']
         qlev=np.array(wconfig['qlev_wnd']).astype('float')
+        qlev_fnames=np.array(wconfig['qlev_wnd_fnames']).astype('str')
         vtickd=int(wconfig['vtickd_wnd'])
         funits=str('knots')
         umf=1.94 # m/s to knots
@@ -259,6 +288,7 @@ if __name__ == "__main__":
         mvar=wconfig['mvar_hs']
         funits=str('m')
         qlev=np.array(wconfig['qlev_hs']).astype('float')
+        qlev_fnames=np.array(wconfig['qlev_hs_fnames']).astype('str')
         vtickd=int(wconfig['vtickd_hs'])
     else:
         sys.exit(" Input variable "+fvarname+" not included in the list. Please select only one: WS10, Hs.")
@@ -454,8 +484,11 @@ if __name__ == "__main__":
         plt.close('all'); del ax
 
         # KML output file ----------------
-        contour_to_kml(lon,lat,gaussian_filter(probecdf[i, :, :], gft),levels=plevels,
-            colors=np.append(pcolors,pcolors[-1]),
+        tstart = pd.to_datetime(wtime[0] + np.timedelta64(ltime1, 'D')).strftime('%Y/%m/%d')
+        tend = pd.to_datetime(wtime[0] + np.timedelta64(ltime2, 'D')).strftime('%Y/%m/%d')
+
+        contour_to_kml(lon,lat,gaussian_filter(probecdf[i, :, :], gft),levels=plevels,lname=qlev_fnames[i],
+            tstart=tstart, tend=tend, colors=np.append(pcolors,pcolors[-1]),
             filename=figname+".kml")
 
         del figname
