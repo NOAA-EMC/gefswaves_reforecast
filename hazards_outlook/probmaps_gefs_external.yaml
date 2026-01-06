@@ -52,12 +52,21 @@ qlev_wnd:
 - 34.0
 - 48.0
 - 64.0
+qlev_wnd_fnames:
+- Gale 34kts WIND
+- Storm 48kts WIND
+- Hurricane Force 64kts WIND
 # Significant wave height in meters
 qlev_hs:
 - 4.0
 - 6.0
 - 9.0
 - 14.0
+qlev_hs_fnames:
+- Very Rough 4m WAVE
+- High 6m WAVE
+- Very High 9m WAVE
+- Phenomenal 14m WAVE
 # Probability thresholds and intervals for the resuling maps
 plevels:
 - 0.15
