@@ -21,11 +21,7 @@ PURPOSE:
   from consecutive cycles.
 
 USAGE:
- Four input arguments are required:
- - Station ID (41048 etc)
- - Forecast Lead Time (Day), Initial (ex. 7)
- - Forecast Lead Time (Day), Final (ex. 14)
- - Output path where output files will be saved.
+ Input arguments: see the first block and input parameters below
 
 DEPENDENCIES:
  See the imports below.
@@ -80,6 +76,8 @@ if __name__ == "__main__":
     # Observations
     # fobsname="/media/ricardo/ssdrmc/analysis/3assessments/fuzzy_verification/data/Altimeter.Buoy.PointExtract.Pacific_20201001to20250101.nc"
     fobsname="/work/noaa/marine/ricardo.campos/work/analysis/3assessments/fuzzy_verification/data/"+oceaname+"/Altimeter.Buoy.PointExtract."+oceaname+"_20201001to20250101.nc"
+    # ----------
+
 
     # obs = read_obs(fobsname,wvar,"mean")
     obs = read_obs(fobsname,wvar,"max")
